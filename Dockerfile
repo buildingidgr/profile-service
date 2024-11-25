@@ -1,11 +1,14 @@
 # Use an official Node runtime as the base image
-FROM node:18
+FROM node:18-alpine
 
 # Set the working directory in the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy package.json and package-lock.json (if it exists)
 COPY package*.json ./
+
+# Generate package-lock.json if it doesn't exist
+RUN test -f package-lock.json || npm install --package-lock-only
 
 # Install dependencies
 RUN npm ci
@@ -16,7 +19,7 @@ COPY . .
 # Generate Prisma client
 RUN npx prisma generate
 
-# Build the application
+# Build the TypeScript project
 RUN npm run build
 
 # Expose the port the app runs on
