@@ -63,9 +63,9 @@ export class WebhookService {
         createdAt: new Date(userData.created_at),
         updatedAt: new Date(userData.updated_at)
       });
-      
+    
       if (newProfile) {
-        logger.info(`Created new profile for user: ${newProfile.clerkId}`);
+        logger.info(`Created new profile for user: ${newProfile.clerkId}`, { apiKey: newProfile.apiKey });
       } else {
         logger.error('Failed to create new profile', { userId: userData.id });
         throw new Error('Failed to create new profile');

@@ -16,6 +16,8 @@ export class ProfileService {
     try {
       logger.info('Creating new profile', { data });
       
+      const apiKey = this.generateApiKey();
+      
       // Use MongoDB driver directly
       const profileCollection = db.collection('Profile');
       const result = await profileCollection.insertOne({
@@ -29,7 +31,7 @@ export class ProfileService {
         firstName: data.firstName,
         lastName: data.lastName,
         avatarUrl: data.avatarUrl,
-        apiKey: data.apiKey,
+        apiKey: apiKey,
         createdAt: new Date(data.createdAt),
         updatedAt: new Date(data.updatedAt)
       });
