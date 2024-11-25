@@ -36,9 +36,17 @@ interface UserData {
   deleted?: boolean;
 }
 
+interface SessionData {
+  id: string;
+  user_id: string;
+  created_at: number;
+  updated_at: number;
+  // Add other session fields as needed
+}
+
 interface WebhookEvent {
   data: {
-    data: UserData;
+    data: UserData | SessionData;
     type: string;
   };
   type: string;
@@ -52,13 +60,16 @@ export class WebhookService {
     try {
       switch (eventType) {
         case 'user.created':
-          await this.handleUserCreated(event.data.data);
+          await this.handleUserCreated(event.data.data as UserData);
           break;
         case 'user.updated':
-          await this.handleUserUpdated(event.data.data);
+          await this.handleUserUpdated(event.data.data as UserData);
           break;
         case 'user.deleted':
-          await this.handleUserDeleted(event.data.data);
+          await this.handleUserDeleted(event.data.data as UserData);
+          break;
+        case 'session.created':
+          await this.handleSessionCreated(event.data.data as SessionData);
           break;
         default:
           logger.warn(`Unhandled webhook event type: ${eventType}`);
@@ -137,6 +148,33 @@ export class WebhookService {
       logger.error('Error handling user.deleted event:', error);
       throw error;
     }
+  }
+
+  private async handleSessionCreated(sessionData: SessionData) {
+    try {
+      logger.info('Handling session.created event', { sessionId: sessionData.id, userId: sessionData.user_id });
+      
+      // Fetch the user data using the user_id from the session
+      const userData = await this.fetchUserData(sessionData.user_id);
+      
+      if (userData) {
+        // Use the existing handleUserCreated method with the fetched user data
+        await this.handleUserCreated(userData);
+      } else {
+        logger.error('Failed to fetch user data for session.created event', { userId: sessionData.user_id });
+      }
+    } catch (error) {
+      logger.error('Error handling session.created event:', error);
+      throw error;
+    }
+  }
+
+  private async fetchUserData(userId: string): Promise<UserData | null> {
+    // Implement the logic to fetch user data from Clerk API
+    // This is a placeholder and should be replaced with actual API call
+    logger.info('Fetching user data from Clerk API', { userId });
+    // TODO: Implement Clerk API call to fetch user data
+    return null;
   }
 }
 
