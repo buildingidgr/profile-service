@@ -9,6 +9,7 @@ generator client {
 
 model Profile {
   id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId         String    @unique
   email           String?   @unique
   emailVerified   Boolean   @default(false)
   phoneNumber     String?   @unique

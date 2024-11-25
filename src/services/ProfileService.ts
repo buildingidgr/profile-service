@@ -2,6 +2,7 @@ import { prisma } from '../utils/database';
 import { redis } from '../utils/redis';
 import { BadRequestError } from '../utils/errors';
 import { createLogger } from '../utils/logger';
+import { ObjectId } from 'mongodb';
 
 const logger = createLogger('ProfileService');
 
@@ -9,21 +10,15 @@ export class ProfileService {
   async createProfile(data: any) {
     try {
       logger.info('Creating new profile', { data });
+      const profileData = {
+        ...data,
+        _id: new ObjectId().toHexString(), // Generate a new MongoDB ObjectId
+        clerkId: data.id, // Store the Clerk-generated ID in a new field
+      };
+      delete profileData.id; // Remove the original id field
+
       const newProfile = await prisma.profile.create({
-        data: {
-          id: data.id,
-          email: data.email,
-          emailVerified: data.emailVerified,
-          phoneNumber: data.phoneNumber,
-          phoneVerified: data.phoneVerified,
-          username: data.username,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          avatarUrl: data.avatarUrl,
-          apiKey: data.apiKey,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt
-        },
+        data: profileData,
       });
       logger.info('Profile created successfully', { profileId: newProfile.id });
       return newProfile;
@@ -37,14 +32,9 @@ export class ProfileService {
     }
   }
 
-  async getProfile(id: string) {
-    const cachedProfile = await redis.get(`profile:${id}`);
-    if (cachedProfile) {
-      return JSON.parse(cachedProfile);
-    }
-
+  async getProfile(clerkId: string) {
     const profile = await prisma.profile.findUnique({
-      where: { id },
+      where: { clerkId },
       include: { externalAccounts: true, preferences: true }
     });
 
@@ -52,14 +42,13 @@ export class ProfileService {
       throw new BadRequestError('Profile not found');
     }
 
-    await redis.set(`profile:${id}`, JSON.stringify(profile), { EX: 3600 });
     return profile;
   }
 
-  async updateProfile(id: string, data: any) {
+  async updateProfile(clerkId: string, data: any) {
     try {
       const updatedProfile = await prisma.profile.update({
-        where: { id },
+        where: { clerkId },
         data: {
           email: data.email,
           emailVerified: data.emailVerified,
@@ -92,11 +81,11 @@ export class ProfileService {
         include: { externalAccounts: true, preferences: true }
       });
 
-      await redis.del(`profile:${id}`);
-      logger.info(`Profile ${id} updated successfully`);
+      await redis.del(`profile:${clerkId}`);
+      logger.info(`Profile ${clerkId} updated successfully`);
       return updatedProfile;
     } catch (error) {
-      logger.error(`Error updating profile ${id}:`, error);
+      logger.error(`Error updating profile ${clerkId}:`, error);
       throw new BadRequestError('Failed to update profile');
     }
   }
