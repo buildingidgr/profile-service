@@ -10,7 +10,11 @@ function validateDatabaseUrl(url: string | undefined): string {
   try {
     new URL(url);
   } catch (error) {
-    throw new Error(`Invalid DATABASE_URL: ${error.message}`);
+    if (error instanceof Error) {
+      throw new Error(`Invalid DATABASE_URL: ${error.message}`);
+    } else {
+      throw new Error('Invalid DATABASE_URL: Unknown error');
+    }
   }
 
   return url;

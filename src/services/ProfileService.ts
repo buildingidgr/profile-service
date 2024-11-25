@@ -20,6 +20,7 @@ export class ProfileService {
           firstName: data.firstName,
           lastName: data.lastName,
           avatarUrl: data.avatarUrl,
+          apiKey: data.apiKey,
           createdAt: data.createdAt,
           updatedAt: data.updatedAt
         },
