@@ -8,7 +8,8 @@ import { requestLogger } from './middleware/requestLogger';
 import { rabbitmq } from './utils/rabbitmq';
 import { createLogger } from './utils/logger';
 import { WebhookService } from './services/WebhookService';
-import { connectToDatabase } from './utils/database';
+import { connectToDatabase, prisma } from './utils/database';
+import { MongoClient } from 'mongodb';
 import { connectRedis, redis } from './utils/redis';
 
 const logger = createLogger('api-service');
@@ -36,6 +37,9 @@ app.use('/api/profiles', profileRoutes);
 // Error handling
 app.use(errorHandler);
 
+// MongoDB connection
+const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
+
 // Health check endpoint
 app.get('/health', async (req, res) => {
   const rabbitMQHealth = await rabbitmq.checkHealth();
@@ -48,7 +52,7 @@ app.get('/health', async (req, res) => {
 async function startServer() {
   try {
     await connectToDatabase();
-    await connectRedis();
+    await mongoClient.connect();
     await rabbitmq.connect();
     
     app.listen(config.port, () => {
@@ -82,13 +86,15 @@ async function setupMessageConsumption() {
   }
 }
 
-startServer();
-
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM signal received. Closing HTTP server and connections.');
   await rabbitmq.close();
+  await prisma.$disconnect();
+  await mongoClient.close();
   await redis.quit();
   process.exit(0);
 });
+
+startServer();
 

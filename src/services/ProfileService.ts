@@ -2,30 +2,39 @@ import { prisma } from '../utils/database';
 import { redis } from '../utils/redis';
 import { BadRequestError } from '../utils/errors';
 import { createLogger } from '../utils/logger';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const logger = createLogger('ProfileService');
+
+// MongoDB connection
+const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
+const db = mongoClient.db();
 
 export class ProfileService {
   async createProfile(data: any) {
     try {
       logger.info('Creating new profile', { data });
-      const newProfile = await prisma.profile.create({
-        data: {
-          clerkId: data.clerkId,
-          email: data.email,
-          emailVerified: data.emailVerified,
-          phoneNumber: data.phoneNumber,
-          phoneVerified: data.phoneVerified,
-          username: data.username,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          avatarUrl: data.avatarUrl,
-          apiKey: data.apiKey,
-          createdAt: data.createdAt,
-          updatedAt: data.updatedAt
-        },
+      
+      // Use MongoDB driver directly
+      const profileCollection = db.collection('Profile');
+      const result = await profileCollection.insertOne({
+        _id: new ObjectId(),
+        clerkId: data.clerkId,
+        email: data.email,
+        emailVerified: data.emailVerified,
+        phoneNumber: data.phoneNumber,
+        phoneVerified: data.phoneVerified,
+        username: data.username,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        avatarUrl: data.avatarUrl,
+        apiKey: data.apiKey,
+        createdAt: new Date(data.createdAt),
+        updatedAt: new Date(data.updatedAt)
       });
-      logger.info('Profile created successfully', { profileId: newProfile.id });
+
+      const newProfile = await profileCollection.findOne({ _id: result.insertedId });
+      logger.info('Profile created successfully', { profileId: newProfile?._id });
       return newProfile;
     } catch (error) {
       logger.error('Error creating profile', { error });

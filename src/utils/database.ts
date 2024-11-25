@@ -1,11 +1,13 @@
 import { PrismaClient } from '@prisma/client'
 import { createLogger } from './logger'
 import { config } from '../config'
+import { MongoClient } from 'mongodb';
 
 const logger = createLogger('database');
 
 declare global {
   var prisma: PrismaClient | undefined
+  var mongoClient: MongoClient | undefined
 }
 
 export const prisma = global.prisma || new PrismaClient({
@@ -17,24 +19,20 @@ export const prisma = global.prisma || new PrismaClient({
   log: ['query', 'info', 'warn', 'error'],
 });
 
+export const mongoClient = global.mongoClient || new MongoClient(config.databaseUrl);
+
 if (process.env.NODE_ENV !== 'production') {
   global.prisma = prisma
+  global.mongoClient = mongoClient
 }
-
-prisma.$use(async (params, next) => {
-  const before = Date.now()
-  const result = await next(params)
-  const after = Date.now()
-  logger.debug(`Query ${params.model}.${params.action} took ${after - before}ms`)
-  return result
-})
 
 export async function connectToDatabase() {
   try {
     await prisma.$connect()
-    logger.info('Connected to database')
+    await mongoClient.connect()
+    logger.info('Connected to MongoDB database')
   } catch (error) {
-    logger.error('Failed to connect to database', error)
+    logger.error('Failed to connect to MongoDB database', error)
     process.exit(1)
   }
 }
