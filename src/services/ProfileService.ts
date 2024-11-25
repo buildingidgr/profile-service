@@ -2,7 +2,6 @@ import { prisma } from '../utils/database';
 import { redis } from '../utils/redis';
 import { BadRequestError } from '../utils/errors';
 import { createLogger } from '../utils/logger';
-import { ObjectId } from 'mongodb';
 
 const logger = createLogger('ProfileService');
 
@@ -10,15 +9,21 @@ export class ProfileService {
   async createProfile(data: any) {
     try {
       logger.info('Creating new profile', { data });
-      const profileData = {
-        ...data,
-        _id: new ObjectId().toHexString(), // Generate a new MongoDB ObjectId
-        clerkId: data.id, // Store the Clerk-generated ID in a new field
-      };
-      delete profileData.id; // Remove the original id field
-
       const newProfile = await prisma.profile.create({
-        data: profileData,
+        data: {
+          clerkId: data.clerkId,
+          email: data.email,
+          emailVerified: data.emailVerified,
+          phoneNumber: data.phoneNumber,
+          phoneVerified: data.phoneVerified,
+          username: data.username,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          avatarUrl: data.avatarUrl,
+          apiKey: data.apiKey,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        },
       });
       logger.info('Profile created successfully', { profileId: newProfile.id });
       return newProfile;
@@ -90,51 +95,59 @@ export class ProfileService {
     }
   }
 
-  async getProfilePreferences(id: string) {
-    const preferences = await prisma.profilePreference.findUnique({
-      where: { profileId: id }
+  async getProfilePreferences(clerkId: string) {
+    const profile = await prisma.profile.findUnique({
+      where: { clerkId },
+      include: { preferences: true }
     });
 
-    if (!preferences) {
+    if (!profile || !profile.preferences) {
       throw new BadRequestError('Profile preferences not found');
     }
 
-    return preferences;
+    return profile.preferences;
   }
 
-  async updateProfilePreferences(id: string, data: any) {
+  async updateProfilePreferences(clerkId: string, data: any) {
     try {
-      const updatedPreferences = await prisma.profilePreference.upsert({
-        where: { profileId: id },
-        update: data,
-        create: { ...data, profileId: id }
+      const updatedProfile = await prisma.profile.update({
+        where: { clerkId },
+        data: {
+          preferences: {
+            upsert: {
+              create: data,
+              update: data,
+            },
+          },
+        },
+        include: { preferences: true },
       });
 
-      logger.info(`Profile preferences for ${id} updated successfully`);
-      return updatedPreferences;
+      logger.info(`Profile preferences for ${clerkId} updated successfully`);
+      return updatedProfile.preferences;
     } catch (error) {
-      logger.error(`Error updating profile preferences for ${id}:`, error);
+      logger.error(`Error updating profile preferences for ${clerkId}:`, error);
       throw new BadRequestError('Failed to update profile preferences');
     }
   }
 
-  async storeApiKey(userId: string, apiKey: string) {
+  async storeApiKey(clerkId: string, apiKey: string) {
     try {
       await prisma.profile.update({
-        where: { id: userId },
+        where: { clerkId },
         data: { apiKey }
       });
-      logger.info(`API Key stored for user: ${userId}`);
+      logger.info(`API Key stored for user: ${clerkId}`);
     } catch (error) {
-      logger.error(`Error storing API Key for user ${userId}:`, error);
+      logger.error(`Error storing API Key for user ${clerkId}:`, error);
       throw new BadRequestError('Failed to store API Key');
     }
   }
 
-  async getApiKey(userId: string) {
+  async getApiKey(clerkId: string) {
     try {
       const profile = await prisma.profile.findUnique({
-        where: { id: userId },
+        where: { clerkId },
         select: { apiKey: true }
       });
       if (!profile || !profile.apiKey) {
@@ -142,7 +155,7 @@ export class ProfileService {
       }
       return profile.apiKey;
     } catch (error) {
-      logger.error(`Error retrieving API Key for user ${userId}:`, error);
+      logger.error(`Error retrieving API Key for user ${clerkId}:`, error);
       throw new BadRequestError('Failed to retrieve API Key');
     }
   }

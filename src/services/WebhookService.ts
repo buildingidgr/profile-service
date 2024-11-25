@@ -53,7 +53,7 @@ export class WebhookService {
       logger.info('Handling user.created event', { userId: userData.id });
       const primaryEmail = userData.email_addresses[0];
       const newProfile = await profileService.createProfile({
-        clerkId: userData.id, // Use clerkId instead of id
+        clerkId: userData.id,
         email: primaryEmail?.email_address,
         emailVerified: primaryEmail?.verification?.status === 'verified',
         username: userData.username,
