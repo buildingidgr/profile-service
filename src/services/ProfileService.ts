@@ -11,6 +11,32 @@ const logger = createLogger('ProfileService');
 const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
 const db = mongoClient.db();
 
+export interface ProfilePreference {
+  location: {
+    timezone: string;
+    language: string;
+    dateFormat: string;
+    timeFormat: string;
+  };
+  notifications: {
+    email: {
+      updates: boolean;
+      security_alerts: boolean;
+      marketing: boolean;
+      newsletter: boolean;
+      team_mentions: boolean;
+    };
+  };
+  privacy: {
+    profile_visibility: string;
+    show_online_status: boolean;
+    two_factor_auth: boolean;
+  };
+  appearance: {
+    theme: string;
+  };
+}
+
 export class ProfileService {
   async createProfile(data: any) {
     try {
@@ -95,20 +121,25 @@ export class ProfileService {
     }
   }
 
-  async getProfilePreferences(clerkId: string) {
+  async getProfilePreferences(clerkId: string): Promise<ProfilePreference | null> {
     const profile = await prisma.profile.findUnique({
       where: { clerkId },
       include: { preferences: true }
     });
 
     if (!profile || !profile.preferences) {
-      throw new BadRequestError('Profile preferences not found');
+      return null;
     }
 
-    return profile.preferences;
+    return {
+      location: profile.preferences.location as ProfilePreference['location'],
+      notifications: profile.preferences.notifications as ProfilePreference['notifications'],
+      privacy: profile.preferences.privacy as ProfilePreference['privacy'],
+      appearance: profile.preferences.appearance as ProfilePreference['appearance']
+    };
   }
 
-  async updateProfilePreferences(clerkId: string, data: any) {
+  async updateProfilePreferences(clerkId: string, data: Partial<ProfilePreference>) {
     try {
       const profile = await prisma.profile.findUnique({
         where: { clerkId },
@@ -121,12 +152,23 @@ export class ProfileService {
 
       const updatedPreferences = await prisma.profilePreference.upsert({
         where: { profileId: profile.id },
-        update: data,
-        create: { ...data, profileId: profile.id },
+        update: {
+          location: data.location ?? undefined,
+          notifications: data.notifications ?? undefined,
+          privacy: data.privacy ?? undefined,
+          appearance: data.appearance ?? undefined
+        },
+        create: {
+          profileId: profile.id,
+          location: data.location ?? {},
+          notifications: data.notifications ?? {},
+          privacy: data.privacy ?? {},
+          appearance: data.appearance ?? {}
+        },
       });
 
       logger.info(`Profile preferences for ${clerkId} updated successfully`);
-      return updatedPreferences;
+      return this.getProfilePreferences(clerkId);
     } catch (error) {
       logger.error(`Error updating profile preferences for ${clerkId}:`, error);
       throw new BadRequestError('Failed to update profile preferences');

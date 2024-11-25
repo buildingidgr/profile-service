@@ -40,5 +40,9 @@ model ProfilePreference {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   profileId   String   @unique @db.ObjectId
   profile     Profile  @relation(fields: [profileId], references: [id])
+  location    Json
+  notifications Json
+  privacy     Json
+  appearance  Json
 }
 

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { ProfileService } from '../services/ProfileService';
+import { ProfileService, ProfilePreference } from '../services/ProfileService';
 
 export class ProfileController {
   private profileService: ProfileService;
@@ -29,6 +29,9 @@ export class ProfileController {
   getProfilePreferences = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const preferences = await this.profileService.getProfilePreferences(req.params.id);
+      if (!preferences) {
+        return res.status(404).json({ message: 'Profile preferences not found' });
+      }
       res.json(preferences);
     } catch (error) {
       next(error);
@@ -37,7 +40,7 @@ export class ProfileController {
 
   updateProfilePreferences = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const updatedPreferences = await this.profileService.updateProfilePreferences(req.params.id, req.body);
+      const updatedPreferences = await this.profileService.updateProfilePreferences(req.params.id, req.body as Partial<ProfilePreference>);
       res.json(updatedPreferences);
     } catch (error) {
       next(error);
