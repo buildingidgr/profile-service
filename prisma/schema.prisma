@@ -1,0 +1,49 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Profile {
+  id              String    @id @default(cuid())
+  email           String?   @unique
+  emailVerified   Boolean   @default(false)
+  phoneNumber     String?   @unique
+  phoneVerified   Boolean   @default(false)
+  username        String?   @unique
+  firstName       String?
+  lastName        String?
+  avatarUrl       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  externalAccounts ProfileExternalAccount[]
+  preferences     ProfilePreference?
+
+  @@map("profiles")
+}
+
+model ProfileExternalAccount {
+  id          String   @id @default(cuid())
+  profileId   String
+  provider    String
+  providerId  String
+  profile     Profile  @relation(fields: [profileId], references: [id])
+
+  @@unique([provider, providerId])
+  @@map("profile_external_accounts")
+}
+
+model ProfilePreference {
+  id          String   @id @default(cuid())
+  profileId   String   @unique
+  profile     Profile  @relation(fields: [profileId], references: [id])
+  // Add any specific preference fields here
+
+  @@map("profile_preferences")
+}
+
+// Remove any other models that were related to old endpoints
+
