@@ -4,19 +4,36 @@ import { ProfileService } from './ProfileService';
 const logger = createLogger('WebhookService');
 const profileService = new ProfileService();
 
-interface SessionData {
+interface EmailAddress {
   id: string;
-  user_id: string;
+  email_address: string;
+  verification: {
+    status: string;
+  };
+}
+
+interface ExternalAccount {
+  id: string;
+  provider: string;
+  email_address?: string;
+}
+
+interface UserData {
+  id: string;
+  email_addresses: EmailAddress[];
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  image_url: string | null;
   created_at: number;
   updated_at: number;
-  client_id: string;
-  expire_at: number;
-  status: string;
+  external_accounts: ExternalAccount[];
+  primary_email_address_id: string | null;
 }
 
 interface WebhookEvent {
   data: {
-    data: SessionData;
+    data: UserData;
   };
   type: string;
 }
@@ -28,8 +45,8 @@ export class WebhookService {
 
     try {
       switch (eventType) {
-        case 'session.created':
-          await this.handleSessionCreated(event.data.data);
+        case 'user.created':
+          await this.handleUserCreated(event.data.data);
           break;
         // ... other event handlers ...
         default:
@@ -41,46 +58,40 @@ export class WebhookService {
     }
   }
 
-  private async handleSessionCreated(sessionData: SessionData) {
+  private async handleUserCreated(userData: UserData) {
     try {
-      logger.info('Handling session.created event', { 
-        sessionId: sessionData.id, 
-        userId: sessionData.user_id,
-        clientId: sessionData.client_id,
-        expireAt: new Date(sessionData.expire_at).toISOString()
+      logger.info('Handling user.created event', { userId: userData.id });
+      
+      const primaryEmail = userData.email_addresses.find(email => email.id === userData.primary_email_address_id);
+      const externalAccount = userData.external_accounts[0]; // Assuming the first external account is the primary one
+
+      const newProfile = await profileService.createProfile({
+        clerkId: userData.id,
+        email: primaryEmail?.email_address,
+        emailVerified: primaryEmail?.verification.status === 'verified',
+        username: userData.username,
+        firstName: userData.first_name,
+        lastName: userData.last_name,
+        avatarUrl: userData.image_url,
+        createdAt: new Date(userData.created_at),
+        updatedAt: new Date(userData.updated_at),
+        externalAccounts: [{
+          provider: externalAccount.provider,
+          providerId: externalAccount.id,
+          email: externalAccount.email_address
+        }]
       });
-
-      // Check if the user already exists in our system
-      const existingProfile = await profileService.getProfile(sessionData.user_id);
-
-      if (existingProfile) {
-        logger.info('User already exists, updating last login', { userId: sessionData.user_id });
-        await profileService.updateLastLogin(sessionData.user_id, new Date(sessionData.created_at));
+    
+      if (newProfile) {
+        logger.info(`Created new profile for user: ${newProfile.clerkId}`);
       } else {
-        logger.info('New user detected, fetching user data and creating profile', { userId: sessionData.user_id });
-        const userData = await this.fetchUserData(sessionData.user_id);
-        if (userData) {
-          await profileService.createProfile(userData);
-        } else {
-          logger.error('Failed to fetch user data for new user', { userId: sessionData.user_id });
-        }
+        logger.error('Failed to create new profile', { userId: userData.id });
+        throw new Error('Failed to create new profile');
       }
-
-      // You might want to store or update session information here
-      // await sessionService.createOrUpdateSession(sessionData);
-
     } catch (error) {
-      logger.error('Error handling session.created event:', error);
+      logger.error('Error handling user.created event:', error);
       throw error;
     }
-  }
-
-  private async fetchUserData(userId: string): Promise<any> {
-    // Implement the logic to fetch user data from Clerk API
-    // This is a placeholder and should be replaced with actual API call
-    logger.info('Fetching user data from Clerk API', { userId });
-    // TODO: Implement Clerk API call to fetch user data
-    return null;
   }
 }
 
