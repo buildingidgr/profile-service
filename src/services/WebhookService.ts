@@ -4,51 +4,68 @@ import { ProfileService } from './ProfileService';
 const logger = createLogger('WebhookService');
 const profileService = new ProfileService();
 
+interface EmailAddress {
+  email_address: string;
+  verification: {
+    status: string;
+  };
+}
+
+interface UserData {
+  id: string;
+  email_addresses: EmailAddress[];
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  image_url: string;
+  created_at: number;
+  updated_at: number;
+}
+
+interface WebhookEvent {
+  data: {
+    data: UserData;
+    type: string;
+  };
+}
+
 export class WebhookService {
-  async processWebhookEvent(event: any) {
-    logger.info(`Processing webhook event: ${event.type}`);
+  async processWebhookEvent(event: WebhookEvent) {
+    const eventType = event.data.type;
+    logger.info(`Processing webhook event: ${eventType}`, { eventData: JSON.stringify(event) });
 
-    switch (event.type) {
-      case 'user.created':
-        await this.handleUserCreated(event.data);
-        break;
-      case 'user.updated':
-        await this.handleUserUpdated(event.data);
-        break;
-      // Add more event types as needed
-      default:
-        logger.warn(`Unhandled webhook event type: ${event.type}`);
-    }
-  }
-
-  private async handleUserCreated(userData: any) {
     try {
-      // Create a new profile based on the user data
-      const newProfile = await profileService.createProfile({
-        email: userData.email,
-        firstName: userData.first_name,
-        lastName: userData.last_name,
-        // Add more fields as necessary
-      });
-      logger.info(`Created new profile for user: ${newProfile.id}`);
+      switch (eventType) {
+        case 'user.created':
+          await this.handleUserCreated(event.data.data);
+          break;
+        default:
+          logger.warn(`Unhandled webhook event type: ${eventType}`);
+      }
     } catch (error) {
-      logger.error('Error handling user.created event:', error);
+      logger.error('Error processing webhook event', { error, eventType });
       throw error;
     }
   }
 
-  private async handleUserUpdated(userData: any) {
+  private async handleUserCreated(userData: UserData) {
     try {
-      // Update the existing profile based on the user data
-      const updatedProfile = await profileService.updateProfile(userData.id, {
-        email: userData.email,
+      logger.info('Handling user.created event', { userId: userData.id });
+      const primaryEmail = userData.email_addresses[0];
+      const newProfile = await profileService.createProfile({
+        id: userData.id,
+        email: primaryEmail?.email_address,
+        emailVerified: primaryEmail?.verification?.status === 'verified',
+        username: userData.username,
         firstName: userData.first_name,
         lastName: userData.last_name,
-        // Add more fields as necessary
+        avatarUrl: userData.image_url,
+        createdAt: new Date(userData.created_at),
+        updatedAt: new Date(userData.updated_at)
       });
-      logger.info(`Updated profile for user: ${updatedProfile.id}`);
+      logger.info(`Created new profile for user: ${newProfile.id}`);
     } catch (error) {
-      logger.error('Error handling user.updated event:', error);
+      logger.error('Error handling user.created event:', error);
       throw error;
     }
   }
