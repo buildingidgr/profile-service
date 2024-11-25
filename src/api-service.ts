@@ -5,6 +5,14 @@ import { errorHandler } from './middleware/errorHandler';
 import { validateToken } from './middleware/validateToken';
 import { profileRoutes } from './routes/profileRoutes';
 import { requestLogger } from './middleware/requestLogger';
+import { rabbitmq } from './utils/rabbitmq';
+import { createLogger } from './utils/logger';
+import { WebhookService } from './services/WebhookService';
+import { connectToDatabase } from './utils/database';
+import { connectRedis } from './utils/redis';
+
+const logger = createLogger('api-service');
+const webhookService = new WebhookService();
 
 const app = express();
 
@@ -29,11 +37,58 @@ app.use('/api/profiles', profileRoutes);
 app.use(errorHandler);
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+app.get('/health', async (req, res) => {
+  const rabbitMQHealth = await rabbitmq.checkHealth();
+  res.json({ 
+    status: 'ok',
+    rabbitMQ: rabbitMQHealth ? 'connected' : 'disconnected'
+  });
 });
 
-app.listen(config.port, () => {
-  console.log(`API Service running on port ${config.port}`);
+async function startServer() {
+  try {
+    await connectToDatabase();
+    await connectRedis();
+    await rabbitmq.connect();
+    
+    app.listen(config.port, () => {
+      logger.info(`API Service running on port ${config.port}`);
+    });
+
+    await setupMessageConsumption();
+
+  } catch (error) {
+    logger.error('Failed to start the server:', error);
+    process.exit(1);
+  }
+}
+
+async function setupMessageConsumption() {
+  try {
+    await rabbitmq.consumeMessages('webhook-events', async (message: any) => {
+      logger.info('Received webhook event:', message);
+      try {
+        await webhookService.processWebhookEvent(message);
+        logger.info(`Webhook event processed successfully`);
+      } catch (error) {
+        logger.error('Error processing webhook event:', error);
+        // Here you might want to implement a retry mechanism or dead-letter queue
+      }
+    });
+  } catch (error) {
+    logger.error('Error setting up message consumption:', error);
+    // Attempt to reconnect after a delay
+    setTimeout(setupMessageConsumption, 5000);
+  }
+}
+
+startServer();
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM signal received. Closing HTTP server and connections.');
+  await rabbitmq.close();
+  await redis.quit();
+  process.exit(0);
 });
 

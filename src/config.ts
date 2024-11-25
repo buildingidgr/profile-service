@@ -2,19 +2,15 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-function validateDatabaseUrl(url: string | undefined): string {
+function validateUrl(url: string | undefined, name: string): string {
   if (!url) {
-    throw new Error('DATABASE_URL is not defined in the environment variables');
+    throw new Error(`${name} is not defined in the environment variables`);
   }
   
   try {
     new URL(url);
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(`Invalid DATABASE_URL: ${error.message}`);
-    } else {
-      throw new Error('Invalid DATABASE_URL: Unknown error');
-    }
+    throw new Error(`Invalid ${name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
   return url;
@@ -26,9 +22,9 @@ export const config = {
   appUrl: process.env.NEXT_PUBLIC_APP_URL,
   marketingUrl: process.env.NEXT_PUBLIC_MARKETING_URL,
   jwtSecret: process.env.JWT_SECRET,
-  databaseUrl: validateDatabaseUrl(process.env.DATABASE_URL),
-  redisUrl: process.env.REDIS_URL,
-  rabbitmqUrl: process.env.RABBITMQ_URL,
+  databaseUrl: validateUrl(process.env.DATABASE_URL, 'DATABASE_URL'),
+  redisUrl: validateUrl(process.env.REDIS_URL, 'REDIS_URL'),
+  rabbitmqUrl: validateUrl(process.env.RABBITMQ_URL, 'RABBITMQ_URL'),
   railwayEnvironment: process.env.RAILWAY_ENVIRONMENT,
   railwayProjectId: process.env.RAILWAY_PROJECT_ID,
 } as const;
