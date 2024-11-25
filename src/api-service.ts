@@ -9,7 +9,7 @@ import { rabbitmq } from './utils/rabbitmq';
 import { createLogger } from './utils/logger';
 import { WebhookService } from './services/WebhookService';
 import { connectToDatabase } from './utils/database';
-import { connectRedis } from './utils/redis';
+import { connectRedis, redis } from './utils/redis';
 
 const logger = createLogger('api-service');
 const webhookService = new WebhookService();
