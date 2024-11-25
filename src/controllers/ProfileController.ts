@@ -43,5 +43,15 @@ export class ProfileController {
       next(error);
     }
   };
+
+  generateApiKey = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const clerkId = req.params.id;
+      const apiKey = await this.profileService.generateAndStoreApiKey(clerkId);
+      res.json({ apiKey });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 

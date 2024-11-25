@@ -3,6 +3,7 @@ import { redis } from '../utils/redis';
 import { BadRequestError } from '../utils/errors';
 import { createLogger } from '../utils/logger';
 import { MongoClient, ObjectId } from 'mongodb';
+import crypto from 'crypto';
 
 const logger = createLogger('ProfileService');
 
@@ -174,6 +175,27 @@ export class ProfileService {
       logger.error(`Error retrieving API Key for user ${clerkId}:`, error);
       throw new BadRequestError('Failed to retrieve API Key');
     }
+  }
+
+  async generateAndStoreApiKey(clerkId: string): Promise<string> {
+    try {
+      // Generate a new API key
+      const apiKey = this.generateApiKey();
+
+      // Store the API key
+      await this.storeApiKey(clerkId, apiKey);
+
+      logger.info(`Generated and stored new API key for user: ${clerkId}`);
+      return apiKey;
+    } catch (error) {
+      logger.error(`Error generating and storing API key for user ${clerkId}:`, error);
+      throw new BadRequestError('Failed to generate and store API Key');
+    }
+  }
+
+  private generateApiKey(): string {
+    // Generate a random string for the API key
+    return 'mh_' + crypto.randomBytes(32).toString('hex');
   }
 }
 
