@@ -9,30 +9,31 @@ interface EmailAddress {
   verification: {
     status: string;
   };
-  id: string; // Added id field to EmailAddress
+  id: string;
 }
 
 interface UserData {
   id: string;
-  email_addresses: EmailAddress[];
-  username: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  image_url: string;
-  created_at: number;
-  updated_at: number;
-  birthday: string;
-  gender: string;
-  password_enabled: boolean;
-  phone_numbers: any[];
-  primary_email_address_id: string | null;
-  primary_phone_number_id: string | null;
-  primary_web3_wallet_id: string | null;
-  private_metadata: Record<string, any>;
-  public_metadata: Record<string, any>;
-  unsafe_metadata: Record<string, any>;
-  two_factor_enabled: boolean;
-  profile_image_url: string;
+  email_addresses?: EmailAddress[];
+  username?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  image_url?: string;
+  created_at?: number;
+  updated_at?: number;
+  birthday?: string;
+  gender?: string;
+  password_enabled?: boolean;
+  phone_numbers?: any[];
+  primary_email_address_id?: string | null;
+  primary_phone_number_id?: string | null;
+  primary_web3_wallet_id?: string | null;
+  private_metadata?: Record<string, any>;
+  public_metadata?: Record<string, any>;
+  unsafe_metadata?: Record<string, any>;
+  two_factor_enabled?: boolean;
+  profile_image_url?: string;
+  deleted?: boolean;
 }
 
 interface WebhookEvent {
@@ -40,11 +41,12 @@ interface WebhookEvent {
     data: UserData;
     type: string;
   };
+  type: string;
 }
 
 export class WebhookService {
   async processWebhookEvent(event: WebhookEvent) {
-    const eventType = event.data.type;
+    const eventType = event.type;
     logger.info(`Processing webhook event: ${eventType}`, { eventData: JSON.stringify(event) });
 
     try {
@@ -54,6 +56,9 @@ export class WebhookService {
           break;
         case 'user.updated':
           await this.handleUserUpdated(event.data.data);
+          break;
+        case 'user.deleted':
+          await this.handleUserDeleted(event.data.data);
           break;
         default:
           logger.warn(`Unhandled webhook event type: ${eventType}`);
@@ -67,7 +72,7 @@ export class WebhookService {
   private async handleUserCreated(userData: UserData) {
     try {
       logger.info('Handling user.created event', { userId: userData.id });
-      const primaryEmail = userData.email_addresses[0];
+      const primaryEmail = userData.email_addresses?.[0];
       const newProfile = await profileService.createProfile({
         clerkId: userData.id,
         email: primaryEmail?.email_address,
@@ -76,8 +81,8 @@ export class WebhookService {
         firstName: userData.first_name,
         lastName: userData.last_name,
         avatarUrl: userData.image_url,
-        createdAt: new Date(userData.created_at),
-        updatedAt: new Date(userData.updated_at)
+        createdAt: userData.created_at ? new Date(userData.created_at) : new Date(),
+        updatedAt: userData.updated_at ? new Date(userData.updated_at) : new Date()
       });
     
       if (newProfile) {
@@ -95,7 +100,7 @@ export class WebhookService {
   private async handleUserUpdated(userData: UserData) {
     try {
       logger.info('Handling user.updated event', { userId: userData.id });
-      const primaryEmail = userData.email_addresses.find(email => email.id === userData.primary_email_address_id);
+      const primaryEmail = userData.email_addresses?.find(email => email.id === userData.primary_email_address_id);
       const updatedProfile = await profileService.updateProfile(userData.id, {
         email: primaryEmail?.email_address,
         emailVerified: primaryEmail?.verification?.status === 'verified',
@@ -103,7 +108,7 @@ export class WebhookService {
         firstName: userData.first_name,
         lastName: userData.last_name,
         avatarUrl: userData.image_url,
-        updatedAt: new Date(userData.updated_at)
+        updatedAt: userData.updated_at ? new Date(userData.updated_at) : new Date()
       });
     
       if (updatedProfile) {
@@ -114,6 +119,22 @@ export class WebhookService {
       }
     } catch (error) {
       logger.error('Error handling user.updated event:', error);
+      throw error;
+    }
+  }
+
+  private async handleUserDeleted(userData: UserData) {
+    try {
+      logger.info('Handling user.deleted event', { userId: userData.id });
+      const deletedProfile = await profileService.deleteProfile(userData.id);
+    
+      if (deletedProfile) {
+        logger.info(`Deleted profile for user: ${userData.id}`);
+      } else {
+        logger.warn('Profile not found for deletion', { userId: userData.id });
+      }
+    } catch (error) {
+      logger.error('Error handling user.deleted event:', error);
       throw error;
     }
   }
