@@ -64,48 +64,31 @@ export class ProfileService {
 
   async updateProfile(clerkId: string, data: any) {
     try {
-      const updatedProfile = await prisma.profile.update({
-        where: { clerkId },
-        data: {
-          email: data.email,
-          emailVerified: data.emailVerified,
-          phoneNumber: data.phoneNumber,
-          phoneVerified: data.phoneVerified,
-          username: data.username,
-          firstName: data.firstName,
-          lastName: data.lastName,
-          avatarUrl: data.avatarUrl,
-          apiKey: data.apiKey,
+      logger.info(`Updating profile for user: ${clerkId}`, { data });
+    
+      const profileCollection = db.collection('Profile');
+      const result = await profileCollection.findOneAndUpdate(
+        { clerkId },
+        {
+          $set: {
+            email: data.email,
+            emailVerified: data.emailVerified,
+            username: data.username,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            avatarUrl: data.avatarUrl,
+            updatedAt: new Date()
+          }
         },
-      });
+        { returnDocument: 'after' }
+      );
 
-      if (data.externalAccounts) {
-        for (const account of data.externalAccounts) {
-          await prisma.profileExternalAccount.upsert({
-            where: {
-              provider_providerId: {
-                provider: account.provider,
-                providerId: account.providerId
-              }
-            },
-            update: account,
-            create: { ...account, profileId: updatedProfile.id }
-          });
-        }
+      if (!result.value) {
+        throw new BadRequestError('Profile not found');
       }
 
-      if (data.preferences) {
-        await prisma.profilePreference.upsert({
-          where: { profileId: updatedProfile.id },
-          update: data.preferences,
-          create: { ...data.preferences, profileId: updatedProfile.id }
-        });
-      }
-
-      await redis.del(`profile:${clerkId}`);
       logger.info(`Profile ${clerkId} updated successfully`);
-      
-      return this.getProfile(clerkId);
+      return result.value;
     } catch (error) {
       logger.error(`Error updating profile ${clerkId}:`, error);
       throw new BadRequestError('Failed to update profile');

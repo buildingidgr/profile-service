@@ -9,6 +9,7 @@ interface EmailAddress {
   verification: {
     status: string;
   };
+  id: string; // Added id field to EmailAddress
 }
 
 interface UserData {
@@ -20,6 +21,18 @@ interface UserData {
   image_url: string;
   created_at: number;
   updated_at: number;
+  birthday: string;
+  gender: string;
+  password_enabled: boolean;
+  phone_numbers: any[];
+  primary_email_address_id: string | null;
+  primary_phone_number_id: string | null;
+  primary_web3_wallet_id: string | null;
+  private_metadata: Record<string, any>;
+  public_metadata: Record<string, any>;
+  unsafe_metadata: Record<string, any>;
+  two_factor_enabled: boolean;
+  profile_image_url: string;
 }
 
 interface WebhookEvent {
@@ -38,6 +51,9 @@ export class WebhookService {
       switch (eventType) {
         case 'user.created':
           await this.handleUserCreated(event.data.data);
+          break;
+        case 'user.updated':
+          await this.handleUserUpdated(event.data.data);
           break;
         default:
           logger.warn(`Unhandled webhook event type: ${eventType}`);
@@ -72,6 +88,32 @@ export class WebhookService {
       }
     } catch (error) {
       logger.error('Error handling user.created event:', error);
+      throw error;
+    }
+  }
+
+  private async handleUserUpdated(userData: UserData) {
+    try {
+      logger.info('Handling user.updated event', { userId: userData.id });
+      const primaryEmail = userData.email_addresses.find(email => email.id === userData.primary_email_address_id);
+      const updatedProfile = await profileService.updateProfile(userData.id, {
+        email: primaryEmail?.email_address,
+        emailVerified: primaryEmail?.verification?.status === 'verified',
+        username: userData.username,
+        firstName: userData.first_name,
+        lastName: userData.last_name,
+        avatarUrl: userData.image_url,
+        updatedAt: new Date(userData.updated_at)
+      });
+    
+      if (updatedProfile) {
+        logger.info(`Updated profile for user: ${updatedProfile.clerkId}`);
+      } else {
+        logger.error('Failed to update profile', { userId: userData.id });
+        throw new Error('Failed to update profile');
+      }
+    } catch (error) {
+      logger.error('Error handling user.updated event:', error);
       throw error;
     }
   }
