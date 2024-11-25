@@ -64,31 +64,36 @@ export class ProfileService {
           lastName: data.lastName,
           avatarUrl: data.avatarUrl,
           apiKey: data.apiKey,
-          externalAccounts: {
-            upsert: data.externalAccounts?.map((account: any) => ({
-              where: {
-                provider_providerId: {
-                  provider: account.provider,
-                  providerId: account.providerId
-                }
-              },
-              update: account,
-              create: account
-            })) || []
-          },
-          preferences: {
-            upsert: {
-              update: data.preferences || {},
-              create: data.preferences || {}
-            }
-          }
         },
-        include: { externalAccounts: true, preferences: true }
       });
+
+      if (data.externalAccounts) {
+        for (const account of data.externalAccounts) {
+          await prisma.profileExternalAccount.upsert({
+            where: {
+              provider_providerId: {
+                provider: account.provider,
+                providerId: account.providerId
+              }
+            },
+            update: account,
+            create: { ...account, profileId: updatedProfile.id }
+          });
+        }
+      }
+
+      if (data.preferences) {
+        await prisma.profilePreference.upsert({
+          where: { profileId: updatedProfile.id },
+          update: data.preferences,
+          create: { ...data.preferences, profileId: updatedProfile.id }
+        });
+      }
 
       await redis.del(`profile:${clerkId}`);
       logger.info(`Profile ${clerkId} updated successfully`);
-      return updatedProfile;
+      
+      return this.getProfile(clerkId);
     } catch (error) {
       logger.error(`Error updating profile ${clerkId}:`, error);
       throw new BadRequestError('Failed to update profile');
@@ -110,21 +115,23 @@ export class ProfileService {
 
   async updateProfilePreferences(clerkId: string, data: any) {
     try {
-      const updatedProfile = await prisma.profile.update({
+      const profile = await prisma.profile.findUnique({
         where: { clerkId },
-        data: {
-          preferences: {
-            upsert: {
-              create: data,
-              update: data,
-            },
-          },
-        },
-        include: { preferences: true },
+        select: { id: true }
+      });
+
+      if (!profile) {
+        throw new BadRequestError('Profile not found');
+      }
+
+      const updatedPreferences = await prisma.profilePreference.upsert({
+        where: { profileId: profile.id },
+        update: data,
+        create: { ...data, profileId: profile.id },
       });
 
       logger.info(`Profile preferences for ${clerkId} updated successfully`);
-      return updatedProfile.preferences;
+      return updatedPreferences;
     } catch (error) {
       logger.error(`Error updating profile preferences for ${clerkId}:`, error);
       throw new BadRequestError('Failed to update profile preferences');
