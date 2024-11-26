@@ -244,8 +244,7 @@ export class ProfileService {
 
       // Delete associated ProfileExternalAccount documents
       const externalAccountCollection = db.collection('ProfileExternalAccount');
-      const deleteResult = await externalAccount
-Collection.deleteMany({ profileId: result.value._id });
+      const deleteResult = await externalAccountCollection.deleteMany({ profileId: result.value._id });
       logger.info(`Deleted ${deleteResult.deletedCount} associated external accounts for user: ${clerkId}`);
 
       // Clear any cached data
