@@ -1,8 +1,10 @@
 import { createLogger } from '../utils/logger';
 import { ProfileService } from './ProfileService';
+import { RegistrationService } from './RegistrationService';
 
 const logger = createLogger('WebhookService');
 const profileService = new ProfileService();
+const registrationService = new RegistrationService();
 
 interface EmailAddress {
   id: string;
@@ -41,12 +43,43 @@ interface SessionData {
   status: string;
 }
 
+interface SmsData {
+  id: string;
+  object: string;
+  from_phone_number: string;
+  to_phone_number: string;
+  phone_number_id: string;
+  user_id: string | null;
+  status: string;
+  message: string;
+  slug: string;
+  app: {
+    domain_name: string;
+    name: string;
+    url: string;
+  };
+  has_custom_suffix: boolean;
+  otp_code: string;
+  user: {
+    public_metadata: any;
+    public_metadata_fallback: string;
+  };
+}
+
 interface WebhookEvent {
   eventType: string;
   data: {
-    data: UserData | SessionData;
+    data: UserData | SessionData | SmsData;
     type: string;
   };
+  event_attributes: {
+    http_request: {
+      client_ip: string;
+      user_agent: string;
+    };
+  };
+  object: string;
+  timestamp: number;
 }
 
 export class WebhookService {
@@ -68,6 +101,9 @@ export class WebhookService {
         case 'session.created':
           await this.handleSessionCreated(event.data.data as SessionData);
           break;
+        case 'sms.created':
+          await this.handleSmsCreated(event as WebhookEvent);
+          break;
         default:
           logger.warn(`Unhandled webhook event type: ${eventType}`);
       }
@@ -82,7 +118,7 @@ export class WebhookService {
       logger.info('Handling user.created event', { userId: userData.id });
       
       const primaryEmail = userData.email_addresses?.find(email => email.id === userData.primary_email_address_id);
-      const externalAccount = userData.external_accounts?.[0]; // Assuming the first external account is the primary one
+      const externalAccount = userData.external_accounts?.[0];
 
       const newProfile = await profileService.createProfile({
         clerkId: userData.id,
@@ -116,8 +152,6 @@ export class WebhookService {
   private async handleUserUpdated(userData: UserData) {
     try {
       logger.info('Handling user.updated event', { userId: userData.id });
-      // Implement user update logic here
-      // For now, we'll just log the event
       logger.info(`User updated: ${userData.id}`);
     } catch (error) {
       logger.error('Error handling user.updated event:', error);
@@ -148,10 +182,19 @@ export class WebhookService {
         clientId: sessionData.client_id,
         expireAt: new Date(sessionData.expire_at).toISOString()
       });
-      // We're not processing this event further at this time
-      // Logic for handling session creation will be added later
     } catch (error) {
       logger.error('Error handling session.created event:', error);
+      throw error;
+    }
+  }
+
+  private async handleSmsCreated(event: WebhookEvent) {
+    try {
+      logger.info('Handling sms.created event', { smsId: (event.data.data as SmsData).id });
+      await registrationService.storeRegistrationAttempt(event);
+      logger.info('Stored registration attempt');
+    } catch (error) {
+      logger.error('Error handling sms.created event:', error);
       throw error;
     }
   }

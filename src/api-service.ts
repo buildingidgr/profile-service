@@ -4,6 +4,7 @@ import { config } from './config';
 import { errorHandler } from './middleware/errorHandler';
 import { validateToken } from './middleware/validateToken';
 import { profileRoutes } from './routes/profileRoutes';
+import { registrationAttemptsRoutes } from './routes/registrationAttemptsRoutes';
 import { requestLogger } from './middleware/requestLogger';
 import { rabbitmq } from './utils/rabbitmq';
 import { createLogger } from './utils/logger';
@@ -33,6 +34,7 @@ app.use('/api', validateToken);
 
 // Routes
 app.use('/api/profiles', profileRoutes);
+app.use('/api/registration-attempts', registrationAttemptsRoutes);
 
 // Error handling
 app.use(errorHandler);
