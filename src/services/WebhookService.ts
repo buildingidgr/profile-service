@@ -32,15 +32,16 @@ interface UserData {
 }
 
 interface WebhookEvent {
+  eventType: string;
   data: {
     data: UserData;
+    type: string;
   };
-  type: string;
 }
 
 export class WebhookService {
   async processWebhookEvent(event: WebhookEvent) {
-    const eventType = event.type;
+    const eventType = event.eventType || event.data.type;
     logger.info(`Processing webhook event: ${eventType}`, { eventData: JSON.stringify(event) });
 
     try {
