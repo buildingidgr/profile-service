@@ -20,15 +20,15 @@ interface ExternalAccount {
 
 interface UserData {
   id: string;
-  email_addresses: EmailAddress[];
-  username: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  image_url: string | null;
-  created_at: number;
-  updated_at: number;
-  external_accounts: ExternalAccount[];
-  primary_email_address_id: string | null;
+  email_addresses?: EmailAddress[];
+  username?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  image_url?: string | null;
+  created_at?: number;
+  updated_at?: number;
+  external_accounts?: ExternalAccount[];
+  primary_email_address_id?: string | null;
 }
 
 interface SessionData {
@@ -81,8 +81,8 @@ export class WebhookService {
     try {
       logger.info('Handling user.created event', { userId: userData.id });
       
-      const primaryEmail = userData.email_addresses.find(email => email.id === userData.primary_email_address_id);
-      const externalAccount = userData.external_accounts[0]; // Assuming the first external account is the primary one
+      const primaryEmail = userData.email_addresses?.find(email => email.id === userData.primary_email_address_id);
+      const externalAccount = userData.external_accounts?.[0]; // Assuming the first external account is the primary one
 
       const newProfile = await profileService.createProfile({
         clerkId: userData.id,
@@ -92,13 +92,13 @@ export class WebhookService {
         firstName: userData.first_name,
         lastName: userData.last_name,
         avatarUrl: userData.image_url,
-        createdAt: new Date(userData.created_at),
-        updatedAt: new Date(userData.updated_at),
-        externalAccounts: [{
+        createdAt: userData.created_at ? new Date(userData.created_at) : new Date(),
+        updatedAt: userData.updated_at ? new Date(userData.updated_at) : new Date(),
+        externalAccounts: externalAccount ? [{
           provider: externalAccount.provider,
           providerId: externalAccount.id,
           email: externalAccount.email_address
-        }]
+        }] : []
       });
     
       if (newProfile) {
@@ -117,18 +117,20 @@ export class WebhookService {
     try {
       logger.info('Handling user.updated event', { userId: userData.id });
       // Implement user update logic here
+      // For now, we'll just log the event
+      logger.info(`User updated: ${userData.id}`);
     } catch (error) {
       logger.error('Error handling user.updated event:', error);
       throw error;
     }
   }
 
-  private async handleUserDeleted(userData: { id: string }) {
+  private async handleUserDeleted(userData: UserData) {
     try {
       logger.info('Handling user.deleted event', { userId: userData.id });
       const deletedProfile = await profileService.deleteProfile(userData.id);
       if (deletedProfile) {
-        logger.info(`Deleted profile for user: ${userData.id}`);
+        logger.info(`Deleted profile and associated data for user: ${userData.id}`);
       } else {
         logger.warn(`Profile not found for deletion: ${userData.id}`);
       }

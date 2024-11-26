@@ -221,7 +221,7 @@ export class ProfileService {
   async deleteProfile(clerkId: string) {
     try {
       logger.info(`Deleting profile for user: ${clerkId}`);
-    
+  
       const profileCollection = db.collection('Profile');
       const result = await profileCollection.findOneAndDelete({ clerkId });
 
@@ -230,9 +230,10 @@ export class ProfileService {
         return null;
       }
 
-      // Delete related data
+      // Delete associated ProfileExternalAccount documents
       const externalAccountCollection = db.collection('ProfileExternalAccount');
-      await externalAccountCollection.deleteMany({ profileId: result.value._id });
+      const deleteResult = await externalAccountCollection.deleteMany({ profileId: result.value._id });
+      logger.info(`Deleted ${deleteResult.deletedCount} associated external accounts for user: ${clerkId}`);
 
       // Clear any cached data
       await redis.del(`profile:${clerkId}`);
