@@ -245,5 +245,35 @@ export class ProfileService {
       throw new BadRequestError('Failed to delete profile');
     }
   }
+
+  async updatePhoneNumber(clerkId: string, phoneNumber: string, phoneNumberId: string) {
+    try {
+      logger.info(`Updating phone number for user: ${clerkId}`, { phoneNumber, phoneNumberId });
+    
+      const profileCollection = db.collection('Profile');
+      const result = await profileCollection.findOneAndUpdate(
+        { clerkId },
+        {
+          $set: {
+            phoneNumber: phoneNumber,
+            phoneNumberId: phoneNumberId,
+            phoneVerified: false, // Set to false initially, will be updated when verified
+            updatedAt: new Date()
+          }
+        },
+        { returnDocument: 'after' }
+      );
+
+      if (!result.value) {
+        throw new BadRequestError('Profile not found');
+      }
+
+      logger.info(`Phone number updated for user: ${clerkId}`);
+      return result.value;
+    } catch (error) {
+      logger.error(`Error updating phone number for user ${clerkId}:`, error);
+      throw new BadRequestError('Failed to update phone number');
+    }
+  }
 }
 
