@@ -31,10 +31,20 @@ interface UserData {
   primary_email_address_id: string | null;
 }
 
+interface SessionData {
+  id: string;
+  user_id: string;
+  created_at: number;
+  updated_at: number;
+  client_id: string;
+  expire_at: number;
+  status: string;
+}
+
 interface WebhookEvent {
   eventType: string;
   data: {
-    data: UserData;
+    data: UserData | SessionData;
     type: string;
   };
 }
@@ -47,9 +57,17 @@ export class WebhookService {
     try {
       switch (eventType) {
         case 'user.created':
-          await this.handleUserCreated(event.data.data);
+          await this.handleUserCreated(event.data.data as UserData);
           break;
-        // ... other event handlers ...
+        case 'user.updated':
+          await this.handleUserUpdated(event.data.data as UserData);
+          break;
+        case 'user.deleted':
+          await this.handleUserDeleted(event.data.data as UserData);
+          break;
+        case 'session.created':
+          await this.handleSessionCreated(event.data.data as SessionData);
+          break;
         default:
           logger.warn(`Unhandled webhook event type: ${eventType}`);
       }
@@ -91,6 +109,42 @@ export class WebhookService {
       }
     } catch (error) {
       logger.error('Error handling user.created event:', error);
+      throw error;
+    }
+  }
+
+  private async handleUserUpdated(userData: UserData) {
+    try {
+      logger.info('Handling user.updated event', { userId: userData.id });
+      // Implement user update logic here
+    } catch (error) {
+      logger.error('Error handling user.updated event:', error);
+      throw error;
+    }
+  }
+
+  private async handleUserDeleted(userData: UserData) {
+    try {
+      logger.info('Handling user.deleted event', { userId: userData.id });
+      // Implement user deletion logic here
+    } catch (error) {
+      logger.error('Error handling user.deleted event:', error);
+      throw error;
+    }
+  }
+
+  private async handleSessionCreated(sessionData: SessionData) {
+    try {
+      logger.info('Handling session.created event', { 
+        sessionId: sessionData.id, 
+        userId: sessionData.user_id,
+        clientId: sessionData.client_id,
+        expireAt: new Date(sessionData.expire_at).toISOString()
+      });
+      // We're not processing this event further at this time
+      // Logic for handling session creation will be added later
+    } catch (error) {
+      logger.error('Error handling session.created event:', error);
       throw error;
     }
   }
