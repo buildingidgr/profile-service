@@ -123,10 +123,15 @@ export class WebhookService {
     }
   }
 
-  private async handleUserDeleted(userData: UserData) {
+  private async handleUserDeleted(userData: { id: string }) {
     try {
       logger.info('Handling user.deleted event', { userId: userData.id });
-      // Implement user deletion logic here
+      const deletedProfile = await profileService.deleteProfile(userData.id);
+      if (deletedProfile) {
+        logger.info(`Deleted profile for user: ${userData.id}`);
+      } else {
+        logger.warn(`Profile not found for deletion: ${userData.id}`);
+      }
     } catch (error) {
       logger.error('Error handling user.deleted event:', error);
       throw error;

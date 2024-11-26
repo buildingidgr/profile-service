@@ -217,5 +217,32 @@ export class ProfileService {
       throw new BadRequestError('Failed to create external accounts');
     }
   }
+
+  async deleteProfile(clerkId: string) {
+    try {
+      logger.info(`Deleting profile for user: ${clerkId}`);
+    
+      const profileCollection = db.collection('Profile');
+      const result = await profileCollection.findOneAndDelete({ clerkId });
+
+      if (!result.value) {
+        logger.warn(`Profile not found for deletion: ${clerkId}`);
+        return null;
+      }
+
+      // Delete related data
+      const externalAccountCollection = db.collection('ProfileExternalAccount');
+      await externalAccountCollection.deleteMany({ profileId: result.value._id });
+
+      // Clear any cached data
+      await redis.del(`profile:${clerkId}`);
+
+      logger.info(`Profile and related data deleted for user: ${clerkId}`);
+      return result.value;
+    } catch (error) {
+      logger.error(`Error deleting profile ${clerkId}:`, error);
+      throw new BadRequestError('Failed to delete profile');
+    }
+  }
 }
 
