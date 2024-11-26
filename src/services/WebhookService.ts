@@ -1,6 +1,7 @@
 import { createLogger } from '../utils/logger';
 import { ProfileService } from './ProfileService';
 import { RegistrationService } from './RegistrationService';
+import { BadRequestError } from '../utils/errors';
 
 const logger = createLogger('WebhookService');
 const profileService = new ProfileService();
@@ -14,6 +15,14 @@ interface EmailAddress {
   };
 }
 
+interface PhoneNumber {
+  id: string;
+  phone_number: string;
+  verification: {
+    status: string;
+  };
+}
+
 interface ExternalAccount {
   id: string;
   provider: string;
@@ -22,15 +31,18 @@ interface ExternalAccount {
 
 interface UserData {
   id: string;
-  email_addresses?: EmailAddress[];
-  username?: string | null;
-  first_name?: string | null;
-  last_name?: string | null;
-  image_url?: string | null;
-  created_at?: number;
-  updated_at?: number;
-  external_accounts?: ExternalAccount[];
-  primary_email_address_id?: string | null;
+  email_addresses: EmailAddress[];
+  phone_numbers: PhoneNumber[];
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  image_url: string | null;
+  profile_image_url: string | null;
+  created_at: number;
+  updated_at: number;
+  external_accounts: ExternalAccount[];
+  primary_email_address_id: string | null;
+  primary_phone_number_id: string | null;
 }
 
 interface SessionData {
@@ -53,17 +65,6 @@ interface SmsData {
   status: string;
   message: string;
   slug: string;
-  app: {
-    domain_name: string;
-    name: string;
-    url: string;
-  };
-  has_custom_suffix: boolean;
-  otp_code: string;
-  user: {
-    public_metadata: any;
-    public_metadata_fallback: string;
-  };
 }
 
 interface WebhookEvent {
@@ -108,8 +109,11 @@ export class WebhookService {
           logger.warn(`Unhandled webhook event type: ${eventType}`);
       }
     } catch (error) {
-      logger.error('Error processing webhook event', { error, eventType });
-      throw error;
+      logger.error('Error processing webhook event', { 
+        error: error instanceof Error ? error.message : 'Unknown error', 
+        eventType, 
+        stack: error instanceof Error ? error.stack : undefined 
+      });
     }
   }
 
@@ -117,45 +121,52 @@ export class WebhookService {
     try {
       logger.info('Handling user.created event', { userId: userData.id });
       
-      const primaryEmail = userData.email_addresses?.find(email => email.id === userData.primary_email_address_id);
-      const externalAccount = userData.external_accounts?.[0];
+      const primaryEmail = userData.email_addresses.find(email => email.id === userData.primary_email_address_id);
+      const primaryPhone = userData.phone_numbers.find(phone => phone.id === userData.primary_phone_number_id);
+      const externalAccount = userData.external_accounts[0]; // Assuming the first external account is the primary one
 
-      const newProfile = await profileService.createProfile({
+      const profileData = {
         clerkId: userData.id,
         email: primaryEmail?.email_address,
         emailVerified: primaryEmail?.verification.status === 'verified',
+        phoneNumber: primaryPhone?.phone_number,
+        phoneVerified: primaryPhone?.verification.status === 'verified',
         username: userData.username,
         firstName: userData.first_name,
         lastName: userData.last_name,
-        avatarUrl: userData.image_url,
-        createdAt: userData.created_at ? new Date(userData.created_at) : new Date(),
-        updatedAt: userData.updated_at ? new Date(userData.updated_at) : new Date(),
+        avatarUrl: userData.profile_image_url || userData.image_url,
+        createdAt: new Date(userData.created_at),
+        updatedAt: new Date(userData.updated_at),
         externalAccounts: externalAccount ? [{
           provider: externalAccount.provider,
           providerId: externalAccount.id,
           email: externalAccount.email_address
         }] : []
-      });
+      };
+
+      const newProfile = await profileService.createProfile(profileData);
     
       if (newProfile) {
         logger.info(`Created new profile for user: ${newProfile.clerkId}`);
       } else {
         logger.error('Failed to create new profile', { userId: userData.id });
-        throw new Error('Failed to create new profile');
       }
     } catch (error) {
-      logger.error('Error handling user.created event:', error);
-      throw error;
+      if (error instanceof BadRequestError) {
+        logger.error('Bad request error handling user.created event:', error);
+      } else {
+        logger.error('Unexpected error handling user.created event:', error);
+      }
     }
   }
 
   private async handleUserUpdated(userData: UserData) {
     try {
       logger.info('Handling user.updated event', { userId: userData.id });
+      // Implement user update logic here
       logger.info(`User updated: ${userData.id}`);
     } catch (error) {
       logger.error('Error handling user.updated event:', error);
-      throw error;
     }
   }
 
@@ -170,7 +181,6 @@ export class WebhookService {
       }
     } catch (error) {
       logger.error('Error handling user.deleted event:', error);
-      throw error;
     }
   }
 
@@ -184,7 +194,6 @@ export class WebhookService {
       });
     } catch (error) {
       logger.error('Error handling session.created event:', error);
-      throw error;
     }
   }
 
@@ -195,7 +204,6 @@ export class WebhookService {
       logger.info('Stored registration attempt');
     } catch (error) {
       logger.error('Error handling sms.created event:', error);
-      throw error;
     }
   }
 }

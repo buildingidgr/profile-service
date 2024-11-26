@@ -40,8 +40,12 @@ export interface ProfilePreference {
 export class ProfileService {
   async createProfile(data: any) {
     try {
-      logger.info('Creating new profile', { data });
+      logger.info('Creating new profile', { data: JSON.stringify(data) });
       
+      if (!data.clerkId) {
+        throw new BadRequestError('ClerkId is required');
+      }
+
       const apiKey = this.generateApiKey();
       
       const profileCollection = db.collection('Profile');
@@ -63,15 +67,18 @@ export class ProfileService {
 
       const newProfile = await profileCollection.findOne({ _id: result.insertedId });
 
-      if (newProfile && data.externalAccounts) {
+      if (newProfile && data.externalAccounts && data.externalAccounts.length > 0) {
         await this.createExternalAccounts(newProfile._id.toString(), data.externalAccounts);
       }
 
       logger.info('Profile created successfully', { profileId: newProfile?._id });
       return newProfile;
     } catch (error) {
-      logger.error('Error creating profile', { error });
-      throw new BadRequestError('Failed to create profile');
+      logger.error('Error creating profile', { 
+        error: error instanceof Error ? error.message : 'Unknown error', 
+        stack: error instanceof Error ? error.stack : undefined 
+      });
+      throw new BadRequestError('Failed to create profile: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
 
@@ -102,6 +109,8 @@ export class ProfileService {
           $set: {
             email: data.email,
             emailVerified: data.emailVerified,
+            phoneNumber: data.phoneNumber,
+            phoneVerified: data.phoneVerified,
             username: data.username,
             firstName: data.firstName,
             lastName: data.lastName,
@@ -213,8 +222,11 @@ export class ProfileService {
       await externalAccountCollection.insertMany(accounts);
       logger.info('External accounts created successfully', { profileId, count: accounts.length });
     } catch (error) {
-      logger.error('Error creating external accounts', { error, profileId });
-      throw new BadRequestError('Failed to create external accounts');
+      logger.error('Error creating external accounts', { 
+        error: error instanceof Error ? error.message : 'Unknown error', 
+        profileId 
+      });
+      // Don't throw here, just log the error
     }
   }
 
@@ -232,7 +244,8 @@ export class ProfileService {
 
       // Delete associated ProfileExternalAccount documents
       const externalAccountCollection = db.collection('ProfileExternalAccount');
-      const deleteResult = await externalAccountCollection.deleteMany({ profileId: result.value._id });
+      const deleteResult = await externalAccount
+Collection.deleteMany({ profileId: result.value._id });
       logger.info(`Deleted ${deleteResult.deletedCount} associated external accounts for user: ${clerkId}`);
 
       // Clear any cached data
