@@ -24,6 +24,8 @@ model Profile {
   updatedAt       DateTime  @updatedAt
   externalAccounts ProfileExternalAccount[]
   preferences     ProfilePreference?
+
+  @@index([clerkId])
 }
 
 model ProfileExternalAccount {
