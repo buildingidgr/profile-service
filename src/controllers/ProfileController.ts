@@ -1,4 +1,116 @@
-node_modules/
-dist/
-.env
+import { Request, Response, NextFunction } from 'express';
+import { ProfileService } from '../services/ProfileService';
+import authService from '../services/authService';
 
+export class ProfileController {
+  private profileService: ProfileService;
+
+  constructor() {
+    this.profileService = new ProfileService();
+  }
+
+  getProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestedProfileId = req.params.id;
+      const requestingUserId = req.userId;
+
+      if (!requestingUserId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      if (requestedProfileId !== requestingUserId) {
+        return res.status(403).json({ 
+          error: 'Forbidden',
+          message: 'You can only access your own profile' 
+        });
+      }
+
+      const profile = await this.profileService.getProfile(requestedProfileId);
+      res.json(profile);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profileId = req.params.id;
+      const requestingUserId = req.userId;
+
+      if (!requestingUserId || profileId !== requestingUserId) {
+        return res.status(403).json({ 
+          error: 'Forbidden',
+          message: 'You can only update your own profile' 
+        });
+      }
+
+      const profile = await this.profileService.updateProfile(profileId, req.body);
+      res.json(profile);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getProfilePreferences = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profileId = req.params.id;
+      const requestingUserId = req.userId;
+
+      if (!requestingUserId || profileId !== requestingUserId) {
+        return res.status(403).json({ 
+          error: 'Forbidden',
+          message: 'You can only access your own preferences' 
+        });
+      }
+
+      const preferences = await this.profileService.getProfilePreferences(profileId);
+      res.json(preferences);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateProfilePreferences = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profileId = req.params.id;
+      const requestingUserId = req.userId;
+
+      if (!requestingUserId || profileId !== requestingUserId) {
+        return res.status(403).json({ 
+          error: 'Forbidden',
+          message: 'You can only update your own preferences' 
+        });
+      }
+
+      const preferences = await this.profileService.updateProfilePreferences(profileId, req.body);
+      res.json(preferences);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  generateApiKey = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const profileId = req.params.id;
+      const requestingUserId = req.userId;
+
+      if (!requestingUserId || profileId !== requestingUserId) {
+        return res.status(403).json({ 
+          error: 'Forbidden',
+          message: 'You can only generate API keys for your own profile' 
+        });
+      }
+      
+      const apiKey = await this.profileService.generateAndStoreApiKey(profileId);
+      const tokens = await authService.exchangeApiKey(apiKey);
+      
+      res.json({
+        apiKey,
+        tokens
+      });
+    } catch (error) {
+      console.error('Error generating API key:', error);
+      res.status(500).json({ error: 'Failed to generate API key' });
+    }
+  };
+}
