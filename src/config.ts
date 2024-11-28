@@ -29,7 +29,9 @@ export const config = {
   railwayProjectId: process.env.RAILWAY_PROJECT_ID,
   authServiceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
   auth: {
-    serviceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:3001'
+    serviceUrl: process.env.NODE_ENV === 'production'
+      ? `${process.env.RAILWAY_INTERNAL_URL_AUTH_SERVICE}/v1`
+      : process.env.AUTH_SERVICE_URL || 'http://localhost:3001'
   }
 } as const;
 
