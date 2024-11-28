@@ -38,6 +38,12 @@ export interface ProfilePreference {
   };
 }
 
+interface ProfileUpdateData {
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+}
+
 export class ProfileService {
   private redisService: RedisService;
 
@@ -105,23 +111,30 @@ export class ProfileService {
     }
   }
 
-  async updateProfile(clerkId: string, data: any) {
+  async updateProfile(clerkId: string, data: ProfileUpdateData) {
     try {
-      logger.info(`Updating profile for user: ${clerkId}`, { data });
+      // Only allow specific fields to be updated
+      const allowedUpdates: ProfileUpdateData = {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        avatarUrl: data.avatarUrl
+      };
+
+      // Remove undefined values
+      Object.keys(allowedUpdates).forEach(key => {
+        if (allowedUpdates[key as keyof ProfileUpdateData] === undefined) {
+          delete allowedUpdates[key as keyof ProfileUpdateData];
+        }
+      });
+
+      logger.info(`Updating profile for user: ${clerkId}`, { data: allowedUpdates });
     
       const profileCollection = db.collection('Profile');
       const result = await profileCollection.findOneAndUpdate(
         { clerkId },
         {
           $set: {
-            email: data.email,
-            emailVerified: data.emailVerified,
-            phoneNumber: data.phoneNumber,
-            phoneVerified: data.phoneVerified,
-            username: data.username,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            avatarUrl: data.avatarUrl,
+            ...allowedUpdates,
             updatedAt: new Date()
           }
         },

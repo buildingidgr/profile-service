@@ -48,7 +48,22 @@ export class ProfileController {
         });
       }
 
-      const profile = await this.profileService.updateProfile(profileId, req.body);
+      const { firstName, lastName, avatarUrl, ...otherFields } = req.body;
+
+      if (Object.keys(otherFields).length > 0) {
+        return res.status(400).json({
+          error: 'Bad Request',
+          message: 'Only firstName, lastName, and avatarUrl can be updated'
+        });
+      }
+
+      const updateData = {
+        firstName,
+        lastName,
+        avatarUrl
+      };
+
+      const profile = await this.profileService.updateProfile(profileId, updateData);
       res.json(profile);
     } catch (error) {
       next(error);
