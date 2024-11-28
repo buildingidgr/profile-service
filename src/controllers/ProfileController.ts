@@ -18,7 +18,11 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      if (requestedProfileId !== requestingUserId) {
+      const clerkId = requestingUserId.startsWith('user_') 
+        ? requestingUserId 
+        : `user_${requestingUserId}`;
+
+      if (requestedProfileId !== clerkId) {
         return res.status(403).json({ 
           error: 'Forbidden',
           message: 'You can only access your own profile' 
