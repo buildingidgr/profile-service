@@ -106,7 +106,10 @@ export class ProfileController {
       
       res.json({
         apiKey,
-        tokens
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        token_type: tokens.token_type,
+        expires_in: tokens.expires_in
       });
     } catch (error) {
       console.error('Error generating API key:', error);
