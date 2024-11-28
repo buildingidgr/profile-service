@@ -5,13 +5,16 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   if (axios.isAxiosError(err)) {
     if (err.response?.status === 401) {
       return res.status(401).json({ 
-        error: 'Authentication failed',
-        message: 'Please refresh your token or login again'
+        error: err.response.data.error || 'Authentication failed'
+      });
+    }
+    if (err.response?.status === 400) {
+      return res.status(400).json({ 
+        error: err.response.data.error || 'Bad request'
       });
     }
   }
   
-  // Handle other errors
   console.error('Error:', err);
   res.status(500).json({ error: 'Internal server error' });
 };

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import authService from '../services/authService';
 import jwt from 'jsonwebtoken';
+import axios from 'axios';
 
 declare global {
   namespace Express {
@@ -15,12 +16,12 @@ export const validateToken = async (req: Request, res: Response, next: NextFunct
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'No token provided' });
+      return res.status(401).json({ error: 'Token is required' });
     }
 
     const token = authHeader.split(' ')[1];
     
-    // First validate with auth service
+    // Validate with auth service
     const { isValid } = await authService.validateToken(token);
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid token' });
@@ -32,10 +33,12 @@ export const validateToken = async (req: Request, res: Response, next: NextFunct
       return res.status(401).json({ error: 'Invalid token format' });
     }
 
-    // Attach user ID to request
     req.userId = decoded.sub;
     next();
   } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      return res.status(error.response.status).json(error.response.data);
+    }
     console.error('Token validation error:', error);
     res.status(401).json({ error: 'Token validation failed' });
   }
