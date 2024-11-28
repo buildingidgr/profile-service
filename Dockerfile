@@ -11,7 +11,8 @@ COPY package*.json ./
 RUN test -f package-lock.json || npm install --package-lock-only
 
 # Install dependencies
-RUN npm ci
+COPY package*.json ./
+RUN npm install
 
 # Copy the rest of the application code
 COPY . .

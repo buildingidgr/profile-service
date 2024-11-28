@@ -16,6 +16,3 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   res.status(500).json({ error: 'Internal server error' });
 };
 
-// Add this to your api-service.ts
-app.use(errorHandler);
-
