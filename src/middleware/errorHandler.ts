@@ -1,24 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
-import { CustomError } from '../utils/errors';
+import axios from 'axios';
 
-export const errorHandler = (
-  err: Error,
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  if (err instanceof CustomError) {
-    return res.status(err.statusCode).json({
-      status: 'error',
-      message: err.message,
-      code: err.code
-    });
+export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
+  if (axios.isAxiosError(err)) {
+    if (err.response?.status === 401) {
+      return res.status(401).json({ 
+        error: 'Authentication failed',
+        message: 'Please refresh your token or login again'
+      });
+    }
   }
-
-  console.error(err);
-  return res.status(500).json({
-    status: 'error',
-    message: 'Internal server error'
-  });
+  
+  // Handle other errors
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
 };
+
+// Add this to your api-service.ts
+app.use(errorHandler);
 

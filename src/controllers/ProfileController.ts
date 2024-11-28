@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ProfileService, ProfilePreference } from '../services/ProfileService';
+import authService from '../services/authService';
 
 export class ProfileController {
   private profileService: ProfileService;
@@ -49,11 +50,21 @@ export class ProfileController {
 
   generateApiKey = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const clerkId = req.params.id;
-      const apiKey = await this.profileService.generateAndStoreApiKey(clerkId);
-      res.json({ apiKey });
+      const profileId = req.params.id;
+      
+      // Generate API key using your existing logic
+      const apiKey = await this.profileService.generateAndStoreApiKey(profileId);
+      
+      // Exchange it immediately for tokens
+      const tokens = await authService.exchangeApiKey(apiKey);
+      
+      res.json({
+        apiKey,
+        tokens
+      });
     } catch (error) {
-      next(error);
+      console.error('Error generating API key:', error);
+      res.status(500).json({ error: 'Failed to generate API key' });
     }
   };
 }

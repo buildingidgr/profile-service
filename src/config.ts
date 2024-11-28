@@ -27,5 +27,6 @@ export const config = {
   rabbitmqUrl: validateUrl(process.env.RABBITMQ_URL, 'RABBITMQ_URL'),
   railwayEnvironment: process.env.RAILWAY_ENVIRONMENT,
   railwayProjectId: process.env.RAILWAY_PROJECT_ID,
+  authServiceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:3001'
 } as const;
 
