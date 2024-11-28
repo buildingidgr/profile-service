@@ -5,7 +5,10 @@ class AuthService {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = config.authServiceUrl;
+    if (!config.auth.serviceUrl) {
+      throw new Error('AUTH_SERVICE_URL is not configured');
+    }
+    this.baseUrl = config.auth.serviceUrl;
   }
 
   async exchangeApiKey(apiKey: string) {
