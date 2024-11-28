@@ -8,7 +8,7 @@ class AuthService {
     if (!config.auth.serviceUrl) {
       throw new Error('AUTH_SERVICE_URL is not configured');
     }
-    this.baseUrl = config.auth.serviceUrl;
+    this.baseUrl = config.auth.serviceUrl.replace(/\/v1\/?$/, '');
   }
 
   async exchangeApiKey(apiKey: string) {
@@ -26,6 +26,10 @@ class AuthService {
   }
 
   async validateToken(token: string) {
+    if (!token) {
+      throw new Error('Token is required');
+    }
+    
     const response = await axios.post(`${this.baseUrl}/v1/token/validate`, {
       token
     });

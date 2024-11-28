@@ -30,7 +30,7 @@ export const config = {
   authServiceUrl: process.env.AUTH_SERVICE_URL || 'http://localhost:3001',
   auth: {
     serviceUrl: process.env.NODE_ENV === 'production'
-      ? `${process.env.RAILWAY_INTERNAL_URL_AUTH_SERVICE}/v1`
+      ? process.env.RAILWAY_INTERNAL_URL_AUTH_SERVICE || process.env.AUTH_SERVICE_URL
       : process.env.AUTH_SERVICE_URL || 'http://localhost:3001'
   }
 } as const;
