@@ -41,12 +41,22 @@ export const validateToken = async (req: Request, res: Response, next: NextFunct
       console.error('Token validation error:', error);
       if (axios.isAxiosError(error)) {
         console.error('Auth service response:', error.response?.data);
+        return res.status(401).json({ 
+          error: 'Token validation failed', 
+          details: error.response?.data?.message || error.message 
+        });
       }
-      return res.status(401).json({ error: 'Token validation failed', details: error.message });
+      return res.status(401).json({ 
+        error: 'Token validation failed', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   } catch (error) {
     console.error('Middleware error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
