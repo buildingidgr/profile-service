@@ -148,6 +148,9 @@ export class WebhookService {
     
       if (newProfile) {
         logger.info(`Created new profile for user: ${newProfile.clerkId}`);
+        // Generate and store API key
+        const apiKey = await profileService.generateAndStoreApiKey(newProfile.clerkId);
+        logger.info(`Generated and stored API key for user: ${newProfile.clerkId}`);
       } else {
         logger.error('Failed to create new profile', { userId: userData.id });
       }

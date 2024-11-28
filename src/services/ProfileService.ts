@@ -4,6 +4,7 @@ import { BadRequestError } from '../utils/errors';
 import { createLogger } from '../utils/logger';
 import { MongoClient, ObjectId } from 'mongodb';
 import crypto from 'crypto';
+import { RedisService } from './RedisService';
 
 const logger = createLogger('ProfileService');
 
@@ -38,6 +39,12 @@ export interface ProfilePreference {
 }
 
 export class ProfileService {
+  private redisService: RedisService;
+
+  constructor() {
+    this.redisService = new RedisService();
+  }
+
   async createProfile(data: any) {
     try {
       logger.info('Creating new profile', { data: JSON.stringify(data) });
@@ -197,6 +204,9 @@ export class ProfileService {
         throw new BadRequestError('Profile not found');
       }
 
+      // Store in Redis
+      await this.redisService.storeApiKey(clerkId, apiKey);
+
       logger.info(`Generated and stored new API key for user: ${clerkId}`);
       return apiKey;
     } catch (error) {
@@ -206,7 +216,7 @@ export class ProfileService {
   }
 
   private generateApiKey(): string {
-    return 'mh_' + crypto.randomBytes(32).toString('hex');
+    return 'mk_' + crypto.randomBytes(32).toString('hex');
   }
 
   private async createExternalAccounts(profileId: string, externalAccounts: any[]) {
@@ -246,6 +256,11 @@ export class ProfileService {
       const externalAccountCollection = db.collection('ProfileExternalAccount');
       const deleteResult = await externalAccountCollection.deleteMany({ profileId: result.value._id });
       logger.info(`Deleted ${deleteResult.deletedCount} associated external accounts for user: ${clerkId}`);
+
+      // Delete API key from Redis
+      if (result.value.apiKey) {
+        await this.redisService.deleteApiKey(result.value.apiKey);
+      }
 
       // Clear any cached data
       await redis.del(`profile:${clerkId}`);
