@@ -21,26 +21,32 @@ export const validateToken = async (req: Request, res: Response, next: NextFunct
 
     const token = authHeader.split(' ')[1];
     
-    // Validate with auth service
-    const { isValid } = await authService.validateToken(token);
-    if (!isValid) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
+    try {
+      // Validate with auth service
+      const { isValid } = await authService.validateToken(token);
+      
+      if (!isValid) {
+        return res.status(401).json({ error: 'Invalid token' });
+      }
 
-    // Decode the JWT to get user ID
-    const decoded = jwt.decode(token) as jwt.JwtPayload;
-    if (!decoded || !decoded.sub) {
-      return res.status(401).json({ error: 'Invalid token format' });
-    }
+      // Decode the JWT to get user ID
+      const decoded = jwt.decode(token) as jwt.JwtPayload;
+      if (!decoded || !decoded.sub) {
+        return res.status(401).json({ error: 'Invalid token format' });
+      }
 
-    req.userId = decoded.sub;
-    next();
+      req.userId = decoded.sub;
+      next();
+    } catch (error) {
+      console.error('Token validation error:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Auth service response:', error.response?.data);
+      }
+      return res.status(401).json({ error: 'Token validation failed', details: error.message });
+    }
   } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      return res.status(error.response.status).json(error.response.data);
-    }
-    console.error('Token validation error:', error);
-    res.status(401).json({ error: 'Token validation failed' });
+    console.error('Middleware error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 

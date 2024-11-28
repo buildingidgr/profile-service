@@ -30,10 +30,25 @@ class AuthService {
       throw new Error('Token is required');
     }
     
-    const response = await axios.post(`${this.baseUrl}/v1/token/validate`, {
-      token
-    });
-    return response.data;
+    try {
+      const response = await axios.post(`${this.baseUrl}/v1/token/validate`, {
+        token
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error('Auth service error:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          url: `${this.baseUrl}/v1/token/validate`
+        });
+      }
+      throw error;
+    }
   }
 }
 
