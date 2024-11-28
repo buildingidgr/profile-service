@@ -8,7 +8,7 @@ class AuthService {
     if (!config.auth.serviceUrl) {
       throw new Error('AUTH_SERVICE_URL is not configured');
     }
-    this.baseUrl = config.auth.serviceUrl.replace(/\/v1\/?$/, '');
+    this.baseUrl = config.auth.serviceUrl.replace(/\/+$/, '');
   }
 
   async exchangeApiKey(apiKey: string) {
