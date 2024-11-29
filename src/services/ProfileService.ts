@@ -44,6 +44,44 @@ interface ProfileUpdateData {
   avatarUrl?: string;
 }
 
+export interface UserPreferences {
+  dashboard: {
+    timezone: string;
+    language: string;
+  };
+  notifications: {
+    email: {
+      marketing: boolean;
+      updates: boolean;
+      security: boolean;
+      newsletters: boolean;
+      productAnnouncements: boolean;
+    };
+  };
+  display: {
+    theme: 'light' | 'dark' | 'system';
+  };
+}
+
+const DEFAULT_PREFERENCES: UserPreferences = {
+  dashboard: {
+    timezone: "Europe/Athens",
+    language: "el-GR"
+  },
+  notifications: {
+    email: {
+      marketing: false,
+      updates: false,
+      security: true,
+      newsletters: false,
+      productAnnouncements: false
+    }
+  },
+  display: {
+    theme: "light"
+  }
+};
+
 export class ProfileService {
   private redisService: RedisService;
 
@@ -74,6 +112,7 @@ export class ProfileService {
         lastName: data.lastName,
         avatarUrl: data.avatarUrl,
         apiKey: apiKey,
+        preferences: DEFAULT_PREFERENCES,
         createdAt: new Date(data.createdAt),
         updatedAt: new Date(data.updatedAt)
       });
@@ -102,6 +141,21 @@ export class ProfileService {
 
       if (!profile) {
         throw new BadRequestError('Profile not found');
+      }
+
+      // If preferences don't exist, add default ones
+      if (!profile.preferences) {
+        const result = await profileCollection.findOneAndUpdate(
+          { clerkId },
+          { 
+            $set: { 
+              preferences: DEFAULT_PREFERENCES,
+              updatedAt: new Date()
+            } 
+          },
+          { returnDocument: 'after' }
+        );
+        return result.value;
       }
 
       return profile;
@@ -313,6 +367,53 @@ export class ProfileService {
     } catch (error) {
       logger.error(`Error updating phone number for user ${clerkId}:`, error);
       throw new BadRequestError('Failed to update phone number');
+    }
+  }
+
+  async updatePreferences(clerkId: string, data: Partial<UserPreferences>) {
+    try {
+      const profileCollection = db.collection('Profile');
+      const profile = await profileCollection.findOne({ clerkId });
+
+      if (!profile) {
+        throw new BadRequestError('Profile not found');
+      }
+
+      // Merge existing preferences with updates
+      const updatedPreferences = {
+        ...profile.preferences,
+        ...data,
+        dashboard: {
+          ...profile.preferences?.dashboard,
+          ...data.dashboard
+        },
+        notifications: {
+          email: {
+            ...profile.preferences?.notifications?.email,
+            ...data.notifications?.email
+          }
+        },
+        display: {
+          ...profile.preferences?.display,
+          ...data.display
+        }
+      };
+
+      const result = await profileCollection.findOneAndUpdate(
+        { clerkId },
+        { 
+          $set: { 
+            preferences: updatedPreferences,
+            updatedAt: new Date()
+          } 
+        },
+        { returnDocument: 'after' }
+      );
+
+      return result.value;
+    } catch (error) {
+      logger.error('Error updating preferences', { error, clerkId });
+      throw new BadRequestError('Failed to update preferences');
     }
   }
 }
