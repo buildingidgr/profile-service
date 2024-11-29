@@ -64,17 +64,17 @@ export class ProfileController {
 
   getProfilePreferences = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const profileId = req.params.id;
       const requestingUserId = req.userId;
 
-      if (!requestingUserId || profileId !== requestingUserId) {
-        return res.status(403).json({ 
-          error: 'Forbidden',
-          message: 'You can only access your own preferences' 
-        });
+      if (!requestingUserId) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const preferences = await this.profileService.getProfilePreferences(profileId);
+      const clerkId = requestingUserId.startsWith('user_') 
+        ? requestingUserId 
+        : `user_${requestingUserId}`;
+
+      const preferences = await this.profileService.getProfilePreferences(clerkId);
       res.json(preferences);
     } catch (error) {
       next(error);
@@ -83,17 +83,17 @@ export class ProfileController {
 
   updateProfilePreferences = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const profileId = req.params.id;
       const requestingUserId = req.userId;
 
-      if (!requestingUserId || profileId !== requestingUserId) {
-        return res.status(403).json({ 
-          error: 'Forbidden',
-          message: 'You can only update your own preferences' 
-        });
+      if (!requestingUserId) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const preferences = await this.profileService.updateProfilePreferences(profileId, req.body);
+      const clerkId = requestingUserId.startsWith('user_') 
+        ? requestingUserId 
+        : `user_${requestingUserId}`;
+
+      const preferences = await this.profileService.updatePreferences(clerkId, req.body);
       res.json(preferences);
     } catch (error) {
       next(error);
