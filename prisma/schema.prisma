@@ -28,14 +28,14 @@ model Profile {
 
 model ProfileExternalAccount {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  clerkId     String   @unique
+  clerkId     String
   provider    String
   providerId  String
   email       String?
   profile     Profile  @relation(fields: [clerkId], references: [clerkId])
 
   @@unique([provider, providerId])
-  @@index([clerkId])
+  @@unique([clerkId, provider])
 }
 
 model ProfilePreference {
