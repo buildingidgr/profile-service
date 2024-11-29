@@ -232,22 +232,22 @@ export class ProfileService {
     return 'mk_' + crypto.randomBytes(32).toString('hex');
   }
 
-  private async createExternalAccounts(profileId: string, externalAccounts: any[]) {
+  private async createExternalAccounts(clerkId: string, externalAccounts: any[]) {
     try {
       const externalAccountCollection = db.collection('ProfileExternalAccount');
       const accounts = externalAccounts.map(account => ({
-        profileId: new ObjectId(profileId),
+        clerkId,
         provider: account.provider,
         providerId: account.providerId,
         email: account.email
       }));
 
       await externalAccountCollection.insertMany(accounts);
-      logger.info('External accounts created successfully', { profileId, count: accounts.length });
+      logger.info('External accounts created successfully', { clerkId, count: accounts.length });
     } catch (error) {
       logger.error('Error creating external accounts', { 
         error: error instanceof Error ? error.message : 'Unknown error', 
-        profileId 
+        clerkId 
       });
       // Don't throw here, just log the error
     }
@@ -267,7 +267,7 @@ export class ProfileService {
 
       // Delete associated ProfileExternalAccount documents
       const externalAccountCollection = db.collection('ProfileExternalAccount');
-      const deleteResult = await externalAccountCollection.deleteMany({ profileId: result.value._id });
+      const deleteResult = await externalAccountCollection.deleteMany({ clerkId });
       logger.info(`Deleted ${deleteResult.deletedCount} associated external accounts for user: ${clerkId}`);
 
       // Delete API key from Redis
