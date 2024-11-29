@@ -4,6 +4,7 @@ import { ProfileController } from '../controllers/ProfileController';
 export const profileRoutes = Router();
 const profileController = new ProfileController();
 
+profileRoutes.get('/', profileController.getProfile);
 profileRoutes.get('/me', profileController.getProfile);
 profileRoutes.patch('/me', profileController.updateProfile);
 profileRoutes.get('/me/preferences', profileController.getProfilePreferences);
