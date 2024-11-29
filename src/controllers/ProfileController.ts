@@ -11,7 +11,6 @@ export class ProfileController {
 
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const requestedProfileId = req.params.id;
       const requestingUserId = req.userId;
 
       if (!requestingUserId) {
@@ -22,14 +21,7 @@ export class ProfileController {
         ? requestingUserId 
         : `user_${requestingUserId}`;
 
-      if (requestedProfileId !== clerkId) {
-        return res.status(403).json({ 
-          error: 'Forbidden',
-          message: 'You can only access your own profile' 
-        });
-      }
-
-      const profile = await this.profileService.getProfile(requestedProfileId);
+      const profile = await this.profileService.getProfile(clerkId);
       res.json(profile);
     } catch (error) {
       next(error);
@@ -38,15 +30,15 @@ export class ProfileController {
 
   updateProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const profileId = req.params.id;
       const requestingUserId = req.userId;
 
-      if (!requestingUserId || profileId !== requestingUserId) {
-        return res.status(403).json({ 
-          error: 'Forbidden',
-          message: 'You can only update your own profile' 
-        });
+      if (!requestingUserId) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
+
+      const clerkId = requestingUserId.startsWith('user_') 
+        ? requestingUserId 
+        : `user_${requestingUserId}`;
 
       const { firstName, lastName, avatarUrl, ...otherFields } = req.body;
 
@@ -63,7 +55,7 @@ export class ProfileController {
         avatarUrl
       };
 
-      const profile = await this.profileService.updateProfile(profileId, updateData);
+      const profile = await this.profileService.updateProfile(clerkId, updateData);
       res.json(profile);
     } catch (error) {
       next(error);
