@@ -48,6 +48,7 @@ class RabbitMQConnection {
       });
 
       this.isConnecting = false;
+      logger.info('RabbitMQ connection established and ready to consume messages');
     } catch (error) {
       logger.error('Error connecting to RabbitMQ:', error);
       this.isConnecting = false;
