@@ -25,6 +25,10 @@ class RabbitMQConnection {
       this.channel = await this.connection.createChannel();
       logger.info('Connected to RabbitMQ');
 
+      const queueName = 'webhook-events';
+      await this.channel.assertQueue(queueName, { durable: true });
+      logger.info(`Successfully asserted queue: ${queueName}`);
+
       this.connection.on('error', (err) => {
         logger.error('RabbitMQ connection error:', err);
         this.scheduleReconnect();
@@ -69,7 +73,7 @@ class RabbitMQConnection {
 
     try {
       await this.channel.assertQueue(queue, { durable: true });
-      logger.info(`Asserted queue: ${queue}`);
+      logger.info(`Consuming messages from queue: ${queue}`);
 
       this.channel.consume(queue, async (msg) => {
         if (msg) {
@@ -86,7 +90,6 @@ class RabbitMQConnection {
           }
         }
       });
-      logger.info(`Consuming messages from queue: ${queue}`);
     } catch (error) {
       logger.error(`Error consuming messages from queue ${queue}:`, error);
       throw error;
