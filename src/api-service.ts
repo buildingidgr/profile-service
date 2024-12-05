@@ -9,14 +9,23 @@ import { requestLogger } from './middleware/requestLogger';
 import { createLogger } from './utils/logger';
 import { connectToDatabase } from './utils/database';
 import { connectRedis } from './utils/redis';
+import { rabbitmq } from './utils/rabbitmq';
+import { WebhookService } from './services/WebhookService';
 
 const logger = createLogger('api-service');
+const webhookService = new WebhookService();
 
 async function startServer() {
   try {
-    // Initialize database connections
+    // Initialize connections
     await connectToDatabase();
     await connectRedis();
+    await rabbitmq.connect();
+
+    // Set up webhook event consumer
+    await rabbitmq.consumeMessages('webhook-events', async (message) => {
+      await webhookService.handleWebhookEvent(message);
+    });
 
     const app = express();
 
