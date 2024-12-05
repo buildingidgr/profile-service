@@ -24,7 +24,7 @@ async function startServer() {
 
     // Set up webhook event consumer
     await rabbitmq.consumeMessages('webhook-events', async (message) => {
-      await webhookService.handleWebhookEvent(message);
+      await webhookService.processWebhookEvent(message);
     });
 
     const app = express();
