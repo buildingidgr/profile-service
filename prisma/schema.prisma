@@ -45,3 +45,11 @@ model UserPreferences {
   updatedAt   DateTime @updatedAt
 }
 
+model ProfessionalInfo {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId         String   @unique
+  professionalInfo Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+

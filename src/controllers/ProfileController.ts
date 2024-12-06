@@ -2,14 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import { ProfileService } from '../services/ProfileService';
 import { PreferencesService } from '../services/PreferencesService';
 import authService from '../services/authService';
+import { ProfessionalService } from '../services/ProfessionalService';
 
 export class ProfileController {
   private profileService: ProfileService;
   private preferencesService: PreferencesService;
+  private professionalService: ProfessionalService;
 
   constructor() {
     this.profileService = new ProfileService();
     this.preferencesService = new PreferencesService();
+    this.professionalService = new ProfessionalService();
   }
 
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
@@ -128,6 +131,44 @@ export class ProfileController {
     } catch (error) {
       console.error('Error generating API key:', error);
       res.status(500).json({ error: 'Failed to generate API key' });
+    }
+  };
+
+  getProfessionalInfo = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestingUserId = req.userId;
+
+      if (!requestingUserId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const clerkId = requestingUserId.startsWith('user_') 
+        ? requestingUserId 
+        : `user_${requestingUserId}`;
+
+      const info = await this.professionalService.getProfessionalInfo(clerkId);
+      res.json(info);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateProfessionalInfo = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const requestingUserId = req.userId;
+
+      if (!requestingUserId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const clerkId = requestingUserId.startsWith('user_') 
+        ? requestingUserId 
+        : `user_${requestingUserId}`;
+
+      const info = await this.professionalService.updateProfessionalInfo(clerkId, req.body);
+      res.json(info);
+    } catch (error) {
+      next(error);
     }
   };
 }
