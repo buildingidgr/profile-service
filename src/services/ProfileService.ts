@@ -12,32 +12,6 @@ const logger = createLogger('ProfileService');
 const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
 const db = mongoClient.db();
 
-export interface ProfilePreference {
-  location: {
-    timezone: string;
-    language: string;
-    dateFormat: string;
-    timeFormat: string;
-  };
-  notifications: {
-    email: {
-      updates: boolean;
-      security_alerts: boolean;
-      marketing: boolean;
-      newsletter: boolean;
-      team_mentions: boolean;
-    };
-  };
-  privacy: {
-    profile_visibility: string;
-    show_online_status: boolean;
-    two_factor_auth: boolean;
-  };
-  appearance: {
-    theme: string;
-  };
-}
-
 interface ProfileUpdateData {
   firstName?: string;
   lastName?: string;
@@ -143,21 +117,6 @@ export class ProfileService {
         throw new BadRequestError('Profile not found');
       }
 
-      // If preferences don't exist, add default ones
-      if (!profile.preferences) {
-        const result = await profileCollection.findOneAndUpdate(
-          { clerkId },
-          { 
-            $set: { 
-              preferences: DEFAULT_PREFERENCES,
-              updatedAt: new Date()
-            } 
-          },
-          { returnDocument: 'after' }
-        );
-        return result.value;
-      }
-
       return profile;
     } catch (error) {
       logger.error('Error getting profile', { error, clerkId });
@@ -204,50 +163,6 @@ export class ProfileService {
     } catch (error) {
       logger.error(`Error updating profile ${clerkId}:`, error);
       throw new BadRequestError('Failed to update profile');
-    }
-  }
-
-  async getProfilePreferences(clerkId: string): Promise<ProfilePreference | null> {
-    try {
-      const profileCollection = db.collection('Profile');
-      const profile = await profileCollection.findOne({ clerkId });
-
-      if (!profile || !profile.preferences) {
-        return null;
-      }
-
-      return profile.preferences as ProfilePreference;
-    } catch (error) {
-      logger.error('Error getting profile preferences', { error, clerkId });
-      throw new BadRequestError('Failed to get profile preferences');
-    }
-  }
-
-  async updateProfilePreferences(clerkId: string, data: Partial<ProfilePreference>) {
-    try {
-      logger.info(`Updating profile preferences for user: ${clerkId}`, { data });
-    
-      const profileCollection = db.collection('Profile');
-      const result = await profileCollection.findOneAndUpdate(
-        { clerkId },
-        {
-          $set: {
-            preferences: data,
-            updatedAt: new Date()
-          }
-        },
-        { returnDocument: 'after' }
-      );
-
-      if (!result.value) {
-        throw new BadRequestError('Profile not found');
-      }
-
-      logger.info(`Profile preferences for ${clerkId} updated successfully`);
-      return result.value.preferences as ProfilePreference;
-    } catch (error) {
-      logger.error(`Error updating profile preferences for ${clerkId}:`, error);
-      throw new BadRequestError('Failed to update profile preferences');
     }
   }
 
