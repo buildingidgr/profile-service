@@ -158,7 +158,10 @@ export class ProfileService {
             updatedAt: new Date()
           }
         },
-        { returnDocument: 'after' }
+        { 
+          returnDocument: 'after',
+          projection: { preferences: 0 } // Exclude preferences from the response
+        }
       );
 
       if (!result.value) {
