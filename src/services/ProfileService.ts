@@ -5,6 +5,7 @@ import { createLogger } from '../utils/logger';
 import { MongoClient, ObjectId } from 'mongodb';
 import crypto from 'crypto';
 import { RedisService } from './RedisService';
+import { PreferencesService } from './PreferencesService';
 
 const logger = createLogger('ProfileService');
 
@@ -86,7 +87,6 @@ export class ProfileService {
         lastName: data.lastName,
         avatarUrl: data.avatarUrl,
         apiKey: apiKey,
-        preferences: DEFAULT_PREFERENCES,
         createdAt: new Date(data.createdAt),
         updatedAt: new Date(data.updatedAt)
       });
@@ -96,6 +96,10 @@ export class ProfileService {
       if (newProfile && data.externalAccounts && data.externalAccounts.length > 0) {
         await this.createExternalAccounts(newProfile._id.toString(), data.externalAccounts);
       }
+
+      // Create default preferences for the new user
+      const preferencesService = new PreferencesService();
+      await preferencesService.createDefaultPreferences(data.clerkId);
 
       logger.info('Profile created successfully', { profileId: newProfile?._id });
       return newProfile;
@@ -111,7 +115,10 @@ export class ProfileService {
   async getProfile(clerkId: string) {
     try {
       const profileCollection = db.collection('Profile');
-      const profile = await profileCollection.findOne({ clerkId });
+      const profile = await profileCollection.findOne(
+        { clerkId },
+        { projection: { preferences: 0 } }
+      );
 
       if (!profile) {
         throw new BadRequestError('Profile not found');

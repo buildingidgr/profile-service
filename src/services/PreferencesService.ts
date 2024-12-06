@@ -99,7 +99,7 @@ export class PreferencesService {
     }
   }
 
-  private async createDefaultPreferences(clerkId: string): Promise<void> {
+  public async createDefaultPreferences(clerkId: string): Promise<void> {
     const preferencesCollection = db.collection('UserPreferences');
     await preferencesCollection.insertOne({
       clerkId,
