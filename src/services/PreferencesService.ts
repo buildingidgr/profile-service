@@ -88,6 +88,10 @@ export class PreferencesService {
         }
       );
 
+      if (!result.value) {
+        throw new BadRequestError('Failed to update preferences');
+      }
+
       return result.value.preferences;
     } catch (error) {
       logger.error('Error updating preferences', { error, clerkId });

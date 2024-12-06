@@ -1,12 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { ProfileService } from '../services/ProfileService';
+import { PreferencesService } from '../services/PreferencesService';
 import authService from '../services/authService';
 
 export class ProfileController {
   private profileService: ProfileService;
+  private preferencesService: PreferencesService;
 
   constructor() {
     this.profileService = new ProfileService();
+    this.preferencesService = new PreferencesService();
   }
 
   getProfile = async (req: Request, res: Response, next: NextFunction) => {
@@ -74,7 +77,7 @@ export class ProfileController {
         ? requestingUserId 
         : `user_${requestingUserId}`;
 
-      const preferences = await this.profileService.getProfilePreferences(clerkId);
+      const preferences = await this.preferencesService.getPreferences(clerkId);
       res.json(preferences);
     } catch (error) {
       next(error);
@@ -93,7 +96,7 @@ export class ProfileController {
         ? requestingUserId 
         : `user_${requestingUserId}`;
 
-      const preferences = await this.profileService.updatePreferences(clerkId, req.body);
+      const preferences = await this.preferencesService.updatePreferences(clerkId, req.body);
       res.json(preferences);
     } catch (error) {
       next(error);
