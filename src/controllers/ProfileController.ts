@@ -1,8 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { ProfileService } from '../services/ProfileService';
 import { PreferencesService } from '../services/PreferencesService';
 import authService from '../services/authService';
-import { ProfessionalService } from '../services/ProfessionalService';
 import { createLogger } from '../utils/logger';
 import { prisma } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
@@ -22,12 +21,10 @@ const logger = createLogger('ProfileController');
 export class ProfileController {
   private profileService: ProfileService;
   private preferencesService: PreferencesService;
-  private professionalService: ProfessionalService;
 
   constructor() {
     this.profileService = new ProfileService();
     this.preferencesService = new PreferencesService();
-    this.professionalService = new ProfessionalService();
   }
 
   async getProfile(req: Request, res: Response) {

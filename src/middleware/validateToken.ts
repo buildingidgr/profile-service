@@ -7,7 +7,8 @@ import { createLogger } from '../utils/logger';
 declare global {
   namespace Express {
     interface Request {
-      user?: jwt.JwtPayload;
+      userId?: string;
+      user: jwt.JwtPayload;  // Make this required and consistent
     }
   }
 }

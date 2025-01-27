@@ -52,16 +52,6 @@ export class OpportunityNotificationService {
     return degrees * (Math.PI / 180);
   }
 
-  private isWithinRadius(userLocation: Location, opportunityLocation: Location): boolean {
-    const distance = this.calculateDistance(
-      userLocation.latitude,
-      userLocation.longitude,
-      opportunityLocation.latitude,
-      opportunityLocation.longitude
-    );
-    return distance <= userLocation.radius;
-  }
-
   private async shouldSendEmail(clerkId: string): Promise<boolean> {
     try {
       const preferences = await prisma.userPreferences.findUnique({

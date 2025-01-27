@@ -1,5 +1,5 @@
 import { createLogger } from '../utils/logger';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import crypto from 'crypto';
 import { RedisService } from './RedisService';
 import { BadRequestError } from '../utils/errors';
@@ -253,7 +253,7 @@ export class ProfileService {
       }
 
       // Clear any cached data
-      await redis.del(`profile:${clerkId}`);
+      await this.redisService.del(`profile:${clerkId}`);
 
       logger.info(`Profile and related data deleted for user: ${clerkId}`);
       return result.value;
