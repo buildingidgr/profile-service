@@ -322,20 +322,124 @@ This is the API service for MechHub, handling profile management and authenticat
 
 ## Deployment to Railway
 
-To deploy this project to Railway, follow these steps:
+## Prerequisites
+- GitHub account
+- Railway account
+- Project repository on GitHub
 
-1. Fork this repository to your GitHub account.
+## Deployment Steps
 
-2. Create a new project on Railway and connect it to your GitHub repository.
+1. **Connect Repository**
+   - Log in to Railway
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Choose your profile-service repository
 
-3. In the Railway project settings, add the following environment variables:
-   - `PORT`: 3000 (or your preferred port)
-   - `NODE_ENV`: production
-   - `NEXT_PUBLIC_APP_URL`: Your frontend app URL
-   - `NEXT_PUBLIC_MARKETING_URL`: Your marketing site URL
-   - `JWT_SECRET`: A secure random string for JWT signing
-   - `DATABASE_URL`: Your PostgreSQL database URL (Railway will provide this)
-   - `REDIS_URL`: Your Redis URL (Railway will provide this)
+2. **Configure Environment Variables**
+   Essential environment variables to set:
+   ```
+   PORT=3000
+   NODE_ENV=production
+   DATABASE_URL=your_mongodb_replica_set_connection_string
+   CLERK_SECRET_KEY=your_clerk_secret_key
+   RABBITMQ_URL=your_rabbitmq_connection_url
+   LOG_LEVEL=info
+   ```
 
-4. In the Railway project settings, add the following build command:
+3. **MongoDB Configuration**
+   - Use a MongoDB Atlas or Railway-provided MongoDB service
+   - Ensure the connection string includes `replicaSet` parameter
+   - Example: 
+     ```
+     mongodb+srv://username:password@cluster.mongodb.net/mechhub?replicaSet=rs0
+     ```
+
+4. **Service Configuration**
+   - Railway will automatically detect Node.js project
+   - Uses `nixpacks` for build process
+   - Runs `npm run build` during deployment
+   - Starts service with `npm start`
+
+5. **Networking**
+   - Railway assigns a dynamic port
+   - Use `${PORT}` environment variable
+   - Health check endpoint: `/health`
+
+## Troubleshooting
+
+### Common Issues
+- Verify all required environment variables
+- Check MongoDB replica set configuration
+- Ensure Clerk authentication is properly set up
+- Review Railway build logs for specific errors
+
+### Debugging
+1. Check Railway deployment logs
+2. Verify environment variable values
+3. Test local build before deployment
+4. Ensure all dependencies are correctly specified
+
+## Performance Optimization
+- Use Railway's built-in caching
+- Minimize unnecessary dependencies
+- Optimize Prisma queries
+- Implement proper connection pooling
+
+## Security Recommendations
+- Never commit sensitive information to repository
+- Use Railway's environment variable management
+- Rotate secrets regularly
+- Implement proper authentication and rate limiting
+
+## Monitoring
+- Use Railway's built-in metrics
+- Set up external monitoring services
+- Configure logging and error tracking
+
+## Scaling
+- Railway supports automatic scaling
+- Monitor resource usage
+- Adjust runtime memory as needed
+
+## Continuous Deployment
+- Automatic deployments on GitHub push
+- Configure branch-specific deployments
+- Use Railway's preview environments
+
+## MongoDB Replica Set Configuration
+
+### Local Development
+To run the application with a MongoDB replica set locally:
+
+1. Ensure Docker and Docker Compose are installed
+2. Run the following command:
+   ```bash
+   docker-compose up
+   ```
+
+### Manual Replica Set Setup (Alternative)
+If not using Docker Compose, you can manually set up a replica set:
+
+1. Start MongoDB:
+   ```bash
+   mongod --replSet rs0
+   ```
+
+2. Connect to MongoDB and initiate replica set:
+   ```bash
+   mongosh
+   > rs.initiate({
+       _id: "rs0",
+       members: [{ _id: 0, host: "localhost:27017" }]
+     })
+   ```
+
+## Environment Variables
+- `DATABASE_URL`: MongoDB connection string with replica set
+  Example: `mongodb://localhost:27017/mechhub?replicaSet=rs0`
+
+## Troubleshooting
+- Ensure MongoDB is running with `--replSet` flag
+- Verify connection string includes `replicaSet` parameter
+- Check MongoDB logs for any configuration issues
 

@@ -13,6 +13,9 @@
     "railway:run": "railway run npm start",
     "generate-lockfile": "npm install --package-lock-only"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@prisma/client": "4.16.2",
     "amqplib": "^0.10.3",

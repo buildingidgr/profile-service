@@ -22,9 +22,9 @@ RUN npm run prisma:generate
 # Build TypeScript
 RUN npm run build
 
-# Expose the port the app runs on
-EXPOSE 3000
+# Expose the port from environment variable
+EXPOSE ${PORT:-3000}
 
-# Command to run the application
-CMD ["npm", "start"]
+# Use dynamic port binding for Railway
+CMD ["sh", "-c", "npm start"]
 
