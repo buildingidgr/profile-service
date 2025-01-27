@@ -4,7 +4,6 @@ import cors from 'cors';
 import { rateLimit } from 'express-rate-limit';
 import { createLogger } from './utils/logger';
 import { rabbitmq } from './utils/rabbitmq';
-import { WebhookService } from './services/WebhookService';
 import { config } from './config';
 import { profileRoutes } from './routes/profileRoutes';
 import { validateToken } from './middleware/validateToken';
@@ -27,12 +26,9 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Health check
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
-
-// Initialize services
-const webhookService = new WebhookService();
 
 // Connect to RabbitMQ
 rabbitmq.connect().catch((error) => {

@@ -3,8 +3,7 @@ import { RabbitMQConnection } from '../utils/rabbitmq';
 import { createLogger } from '../utils/logger';
 import { prisma } from '../utils/database';
 import { createTransport, Transporter } from 'nodemailer';
-import { config } from '../config';
-import { Channel, ConsumeMessage } from 'amqplib';
+import { ConsumeMessage } from 'amqplib';
 
 const logger = createLogger('opportunityConsumer');
 
@@ -137,8 +136,8 @@ class OpportunityConsumer {
 
         if (!professionalInfo?.professionalInfo) continue;
 
-        // Parse the professional info JSON
-        const profInfo = professionalInfo.professionalInfo as ProfessionalInfoData;
+        // Parse the professional info JSON and ensure it has the right shape
+        const profInfo = professionalInfo.professionalInfo as unknown as ProfessionalInfoData;
         if (!profInfo.operationArea) continue;
 
         // Check if opportunity is within operation area

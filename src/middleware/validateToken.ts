@@ -1,62 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
-import authService from '../services/authService';
 import jwt from 'jsonwebtoken';
-import axios from 'axios';
+import { config } from '../config';
+import { createLogger } from '../utils/logger';
 
-declare global {
-  namespace Express {
-    interface Request {
-      userId?: string;
-    }
-  }
-}
+const logger = createLogger('validateToken');
 
-export const validateToken = async (req: Request, res: Response, next: NextFunction) => {
+export const validateToken = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = req.headers.authorization?.split(' ')[1];
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Token is required' });
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
     }
 
-    const token = authHeader.split(' ')[1];
-    
     try {
-      // Validate with auth service
-      const { isValid } = await authService.validateToken(token);
-      
-      if (!isValid) {
-        return res.status(401).json({ error: 'Invalid token' });
-      }
-
-      // Decode the JWT to get user ID
-      const decoded = jwt.decode(token) as jwt.JwtPayload;
-      if (!decoded || !decoded.sub) {
-        return res.status(401).json({ error: 'Invalid token format' });
-      }
-
-      req.userId = decoded.sub;
-      next();
+      const decoded = jwt.verify(token, config.jwtSecret || '');
+      req.user = decoded;
+      return next();
     } catch (error) {
-      console.error('Token validation error:', error);
-      if (axios.isAxiosError(error)) {
-        console.error('Auth service response:', error.response?.data);
-        return res.status(401).json({ 
-          error: 'Token validation failed', 
-          details: error.response?.data?.message || error.message 
-        });
-      }
-      return res.status(401).json({ 
-        error: 'Token validation failed', 
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
+      logger.error('Token validation error:', error);
+      return res.status(401).json({ error: 'Invalid token' });
     }
   } catch (error) {
-    console.error('Middleware error:', error);
-    res.status(500).json({ 
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
+    logger.error('Token validation error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 

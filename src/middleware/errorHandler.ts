@@ -1,21 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
-import axios from 'axios';
+import { createLogger } from '../utils/logger';
 
-export const errorHandler = (err: any, req: Request, res: Response, next: NextFunction) => {
-  if (axios.isAxiosError(err)) {
-    if (err.response?.status === 401) {
-      return res.status(401).json({ 
-        error: err.response.data.error || 'Authentication failed'
-      });
+const logger = createLogger('errorHandler');
+
+export const errorHandler = (_req: Request, res: Response, _next: NextFunction) => {
+  try {
+    if (res.locals.error) {
+      const error = res.locals.error;
+      logger.error('Error:', error);
+      
+      if (error.status) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      
+      return res.status(500).json({ error: 'Internal Server Error' });
     }
-    if (err.response?.status === 400) {
-      return res.status(400).json({ 
-        error: err.response.data.error || 'Bad request'
-      });
-    }
+    
+    return res.status(500).json({ error: 'Unknown Error' });
+  } catch (err) {
+    logger.error('Error in error handler:', err);
+    return res.status(500).json({ error: 'Internal Server Error' });
   }
-  
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
 };
 
