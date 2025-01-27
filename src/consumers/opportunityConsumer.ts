@@ -25,6 +25,25 @@ interface ProfessionalInfoData {
   // Add other fields as needed
 }
 
+interface QueueMessage {
+  eventType: string;
+  opportunity: {
+    id: string;
+    data: any;
+    status: string;
+    lastStatusChange: {
+      from: string;
+      to: string;
+      changedBy: string;
+      changedAt: Date;
+    };
+    metadata: {
+      publishedAt: string;
+      previousStatus: string;
+    };
+  };
+}
+
 class OpportunityConsumer {
   private connection: RabbitMQConnection;
   private emailTransporter: Transporter;
@@ -114,70 +133,84 @@ class OpportunityConsumer {
         location: opportunity.location
       });
 
-      // Get all profiles with professional info
+      // Get all professional info records and their corresponding profiles
+      const profilesWithProfInfo = await prisma.professionalInfo.findMany({
+        select: {
+          clerkId: true,
+          professionalInfo: true
+        }
+      });
+
+      // Get the corresponding profiles
+      const clerkIds = profilesWithProfInfo.map(p => p.clerkId);
       const profiles = await prisma.profile.findMany({
         where: {
-          emailVerified: true,
+          clerkId: {
+            in: clerkIds
+          }
         },
         select: {
           clerkId: true,
           email: true,
-        },
+          emailVerified: true
+        }
       });
 
-      logger.info(`Found ${profiles.length} verified profiles to process`);
+      // Create a map for quick profile lookup
+      const profileMap = new Map(profiles.map(p => [p.clerkId, p]));
 
-      for (const profile of profiles) {
-        if (!profile.email) {
-          logger.debug(`Skipping profile ${profile.clerkId}: No email found`);
+      logger.info(`Found ${profilesWithProfInfo.length} profiles with professional info`);
+
+      let matchedCount = 0;
+      for (const record of profilesWithProfInfo) {
+        const profile = profileMap.get(record.clerkId);
+        
+        // Skip if profile is not found or not verified or has no email
+        if (!profile || !profile.emailVerified || !profile.email) {
+          logger.debug(`Skipping profile ${record.clerkId}: Profile not found, email not verified, or missing`);
           continue;
         }
 
-        // Check email preferences
-        const shouldSend = await this.shouldSendEmail(profile.clerkId);
-        if (!shouldSend) {
-          logger.debug(`Skipping profile ${profile.clerkId}: Email notifications disabled`);
-          continue;
-        }
-
-        // Get professional info with location
-        const professionalInfo = await prisma.professionalInfo.findUnique({
-          where: { clerkId: profile.clerkId },
-          select: {
-            professionalInfo: true,
-          },
-        });
-
-        if (!professionalInfo?.professionalInfo) {
-          logger.debug(`Skipping profile ${profile.clerkId}: No professional info found`);
-          continue;
-        }
-
-        // Parse the professional info JSON and ensure it has the right shape
-        const profInfo = professionalInfo.professionalInfo as unknown as ProfessionalInfoData;
+        // Parse the professional info and check operation area
+        const profInfo = record.professionalInfo as unknown as ProfessionalInfoData;
         if (!profInfo.operationArea) {
-          logger.debug(`Skipping profile ${profile.clerkId}: No operation area defined`);
+          logger.debug(`Skipping profile ${record.clerkId}: No operation area defined in professional info`);
           continue;
         }
 
         // Check if opportunity is within operation area
         const isWithin = this.isWithinRadius(profInfo.operationArea, opportunity.location);
         if (!isWithin) {
-          logger.debug(`Skipping profile ${profile.clerkId}: Opportunity outside operation area`, {
+          logger.debug(`Skipping profile ${record.clerkId}: Opportunity outside operation area`, {
             opportunityLocation: opportunity.location,
             operationArea: profInfo.operationArea
           });
           continue;
         }
 
-        logger.info(`Sending opportunity notification to profile ${profile.clerkId}`, {
+        // Check email preferences
+        const shouldSend = await this.shouldSendEmail(record.clerkId);
+        if (!shouldSend) {
+          logger.debug(`Skipping profile ${record.clerkId}: Email notifications disabled`);
+          continue;
+        }
+
+        matchedCount++;
+        logger.info(`Sending opportunity notification to profile ${record.clerkId}`, {
           email: profile.email,
-          opportunityId: opportunity.id
+          opportunityId: opportunity.id,
+          matchNumber: matchedCount
         });
 
         // Send email notification
         await this.sendOpportunityEmail(profile.email, opportunity);
       }
+
+      logger.info(`Completed processing opportunity. Matched ${matchedCount} profiles out of ${profilesWithProfInfo.length} total profiles with professional info`, {
+        opportunityId: opportunity.id,
+        title: opportunity.title
+      });
+
     } catch (error) {
       logger.error('Error processing opportunity:', error);
       throw error;
@@ -210,22 +243,50 @@ class OpportunityConsumer {
           const rawContent = msg.content.toString();
           logger.debug('Raw message content:', rawContent);
 
-          const opportunity = JSON.parse(rawContent) as Opportunity;
-          logger.info('Parsed opportunity from message:', {
+          const queueMessage = JSON.parse(rawContent) as QueueMessage;
+          logger.info('Parsed queue message:', {
+            eventType: queueMessage.eventType,
+            opportunityId: queueMessage.opportunity.id,
+            status: queueMessage.opportunity.status,
+            statusChange: {
+              from: queueMessage.opportunity.lastStatusChange.from,
+              to: queueMessage.opportunity.lastStatusChange.to,
+              changedBy: queueMessage.opportunity.lastStatusChange.changedBy,
+              changedAt: queueMessage.opportunity.lastStatusChange.changedAt
+            },
+            metadata: {
+              publishedAt: queueMessage.opportunity.metadata.publishedAt,
+              previousStatus: queueMessage.opportunity.metadata.previousStatus
+            }
+          });
+
+          // Transform the queue message into the Opportunity format expected by handleOpportunity
+          const opportunity: Opportunity = {
+            id: queueMessage.opportunity.id,
+            title: queueMessage.opportunity.data.title,
+            description: queueMessage.opportunity.data.description,
+            location: queueMessage.opportunity.data.location
+          };
+
+          logger.info('Processing opportunity from queue message:', {
             opportunityId: opportunity.id,
-            title: opportunity.title
+            title: opportunity.title,
+            status: queueMessage.opportunity.status,
+            changedBy: queueMessage.opportunity.lastStatusChange.changedBy
           });
 
           await this.handleOpportunity(opportunity);
           
-          logger.info('Successfully processed opportunity', {
+          logger.info('Successfully processed opportunity from queue', {
             opportunityId: opportunity.id,
-            messageId: msg.properties.messageId
+            messageId: msg.properties.messageId,
+            eventType: queueMessage.eventType,
+            publishedAt: queueMessage.opportunity.metadata.publishedAt
           });
           
           channel.ack(msg);
         } catch (error) {
-          logger.error('Error processing message:', {
+          logger.error('Error processing queue message:', {
             error,
             messageId: msg.properties.messageId,
             content: msg.content.toString()
