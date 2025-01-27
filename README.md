@@ -6,6 +6,9 @@
 - Enhanced security by using authenticated user's ID for all operations
 - Improved error handling and authorization checks for preferences endpoints
 - Updated Docker configuration to resolve OpenSSL dependencies
+- Fixed MongoDB transaction limitations for professional info updates
+- Improved error handling for professional info endpoints
+- Enhanced compatibility with MongoDB configurations
 
 ## API Endpoints
 
@@ -116,6 +119,31 @@ docker run -p 3000:3000 profile-service
 - `DATABASE_URL`: MongoDB connection string
 - `JWT_SECRET`: Secret for JWT token generation
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`: Email service configuration
+
+## MongoDB Configuration
+
+### Replica Set Requirement
+Prisma requires MongoDB to be configured as a replica set to support transactions. If you're using a single-node MongoDB setup, you'll need to modify your configuration:
+
+#### Local Development
+For local development, you can:
+1. Use MongoDB Atlas (which provides replica set by default)
+2. Convert your local MongoDB to a replica set:
+   ```bash
+   # Start MongoDB with replica set
+   mongod --replSet rs0
+   
+   # In MongoDB shell
+   rs.initiate()
+   ```
+
+#### Railway Deployment
+- Ensure your MongoDB service is configured as a replica set
+- If using Railway, most MongoDB services are pre-configured with replica set support
+
+### Troubleshooting
+- Error: "Prisma needs to perform transactions, which requires your MongoDB server to be run as a replica set"
+- Solution: Configure your MongoDB instance as a replica set or modify Prisma queries to avoid transactions
 
 # MechHub API
 

@@ -206,14 +206,30 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const professionalInfo = await prisma.professionalInfo.upsert({
+      // First, check if professional info exists
+      const existingInfo = await prisma.professionalInfo.findUnique({
         where: { clerkId },
-        update: { professionalInfo: professionalData },
-        create: {
-          clerkId,
-          professionalInfo: professionalData,
-        },
       });
+
+      let professionalInfo;
+      if (existingInfo) {
+        // If exists, update
+        professionalInfo = await prisma.professionalInfo.update({
+          where: { clerkId },
+          data: { 
+            professionalInfo: professionalData,
+            updatedAt: new Date()
+          },
+        });
+      } else {
+        // If not exists, create
+        professionalInfo = await prisma.professionalInfo.create({
+          data: {
+            clerkId,
+            professionalInfo: professionalData,
+          },
+        });
+      }
 
       return res.json(professionalInfo);
     } catch (error) {
