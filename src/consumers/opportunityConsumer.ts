@@ -29,13 +29,37 @@ interface QueueMessage {
   eventType: string;
   opportunity: {
     id: string;
-    data: any;
+    data: {
+      project: {
+        category: string;
+        location: {
+          address: string;
+          coordinates: {
+            lat: number;
+            lng: number;
+          };
+          parsedAddress: {
+            streetNumber: string;
+            street: string;
+            city: string;
+            area: string;
+            country: string;
+            countryCode: string;
+            postalCode: string;
+          };
+        };
+        details: {
+          title: string;
+          description: string;
+        };
+      };
+    };
     status: string;
     lastStatusChange: {
       from: string;
       to: string;
       changedBy: string;
-      changedAt: Date;
+      changedAt: string;
     };
     metadata: {
       publishedAt: string;
@@ -130,10 +154,13 @@ class OpportunityConsumer {
       logger.info('Processing opportunity:', {
         opportunityId: opportunity.id,
         title: opportunity.title,
-        location: opportunity.location
+        coordinates: {
+          latitude: opportunity.location.latitude,
+          longitude: opportunity.location.longitude
+        }
       });
 
-      // Get all professional info records and their corresponding profiles
+      // Get all professional info records
       const profilesWithProfInfo = await prisma.professionalInfo.findMany({
         select: {
           clerkId: true,
@@ -156,7 +183,6 @@ class OpportunityConsumer {
         }
       });
 
-      // Create a map for quick profile lookup
       const profileMap = new Map(profiles.map(p => [p.clerkId, p]));
 
       logger.info(`Found ${profilesWithProfInfo.length} profiles with professional info`);
@@ -165,25 +191,44 @@ class OpportunityConsumer {
       for (const record of profilesWithProfInfo) {
         const profile = profileMap.get(record.clerkId);
         
-        // Skip if profile is not found or not verified or has no email
         if (!profile || !profile.emailVerified || !profile.email) {
           logger.debug(`Skipping profile ${record.clerkId}: Profile not found, email not verified, or missing`);
           continue;
         }
 
-        // Parse the professional info and check operation area
-        const profInfo = record.professionalInfo as unknown as ProfessionalInfoData;
-        if (!profInfo.operationArea) {
-          logger.debug(`Skipping profile ${record.clerkId}: No operation area defined in professional info`);
+        // Parse the professional info
+        const profInfo = record.professionalInfo as any;
+        if (!profInfo.areaOfOperation?.coordinates || !profInfo.areaOfOperation?.radius) {
+          logger.debug(`Skipping profile ${record.clerkId}: Missing coordinates or radius in area of operation`, {
+            areaOfOperation: profInfo.areaOfOperation
+          });
           continue;
         }
 
+        const operationArea: Location = {
+          latitude: profInfo.areaOfOperation.coordinates.latitude,
+          longitude: profInfo.areaOfOperation.coordinates.longitude,
+          radius: profInfo.areaOfOperation.radius
+        };
+
+        // Log the coordinates being compared
+        logger.debug('Comparing coordinates:', {
+          profileId: record.clerkId,
+          opportunityLocation: opportunity.location,
+          profileOperationArea: operationArea
+        });
+
         // Check if opportunity is within operation area
-        const isWithin = this.isWithinRadius(profInfo.operationArea, opportunity.location);
+        const isWithin = this.isWithinRadius(operationArea, opportunity.location);
         if (!isWithin) {
           logger.debug(`Skipping profile ${record.clerkId}: Opportunity outside operation area`, {
-            opportunityLocation: opportunity.location,
-            operationArea: profInfo.operationArea
+            distance: this.calculateDistance(
+              operationArea.latitude,
+              operationArea.longitude,
+              opportunity.location.latitude,
+              opportunity.location.longitude
+            ),
+            maxRadius: operationArea.radius
           });
           continue;
         }
@@ -199,10 +244,15 @@ class OpportunityConsumer {
         logger.info(`Sending opportunity notification to profile ${record.clerkId}`, {
           email: profile.email,
           opportunityId: opportunity.id,
-          matchNumber: matchedCount
+          matchNumber: matchedCount,
+          distance: this.calculateDistance(
+            operationArea.latitude,
+            operationArea.longitude,
+            opportunity.location.latitude,
+            opportunity.location.longitude
+          )
         });
 
-        // Send email notification
         await this.sendOpportunityEmail(profile.email, opportunity);
       }
 
@@ -234,45 +284,36 @@ class OpportunityConsumer {
         }
         
         try {
-          logger.info('Received message from queue', {
-            messageId: msg.properties.messageId,
-            timestamp: msg.properties.timestamp,
-            contentType: msg.properties.contentType
-          });
-
           const rawContent = msg.content.toString();
-          // Log the exact raw message for debugging with proper formatting
           logger.info('Raw message content:\n' + JSON.stringify(JSON.parse(rawContent), null, 2));
 
           const queueMessage = JSON.parse(rawContent) as QueueMessage;
           
-          // Log the complete parsed message structure with proper formatting
-          logger.info('Complete parsed message:\n' + JSON.stringify({
-            eventType: queueMessage.eventType,
-            opportunity: {
-              id: queueMessage.opportunity.id,
-              data: queueMessage.opportunity.data,
-              status: queueMessage.opportunity.status,
-              lastStatusChange: queueMessage.opportunity.lastStatusChange,
-              metadata: queueMessage.opportunity.metadata
-            }
-          }, null, 2));
+          // Log the complete parsed message structure
+          logger.info('Complete parsed message:\n' + JSON.stringify(queueMessage, null, 2));
 
-          // Transform the queue message into the Opportunity format expected by handleOpportunity
+          // Transform the queue message into the Opportunity format
           const opportunity: Opportunity = {
             id: queueMessage.opportunity.id,
-            title: queueMessage.opportunity.data.title,
-            description: queueMessage.opportunity.data.description,
-            location: queueMessage.opportunity.data.location
+            title: queueMessage.opportunity.data.project.details.title,
+            description: queueMessage.opportunity.data.project.details.description,
+            location: {
+              latitude: queueMessage.opportunity.data.project.location.coordinates.lat,
+              longitude: queueMessage.opportunity.data.project.location.coordinates.lng,
+              radius: 0 // The opportunity point doesn't need a radius
+            }
           };
 
-          // Log the transformed opportunity object with proper formatting
+          // Log the transformed opportunity object
           logger.info('Transformed opportunity object:\n' + JSON.stringify(opportunity, null, 2));
 
-          // Also log the location data specifically since it's crucial for matching
+          // Log the location data specifically for matching
           logger.info('Location data for matching:', {
-            opportunityLocation: opportunity.location,
-            rawLocationData: queueMessage.opportunity.data.location
+            opportunityCoordinates: {
+              latitude: opportunity.location.latitude,
+              longitude: opportunity.location.longitude
+            },
+            originalCoordinates: queueMessage.opportunity.data.project.location.coordinates
           });
 
           await this.handleOpportunity(opportunity);
@@ -292,7 +333,6 @@ class OpportunityConsumer {
             rawContent: msg.content.toString(),
             parseError: error instanceof SyntaxError ? 'Invalid JSON format' : 'Processing error'
           });
-          // Nack the message and don't requeue it if it's malformed
           channel.nack(msg, false, false);
         }
       });
