@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { RabbitMQConnection } from '../utils/rabbitmq';
 import { createLogger } from '../utils/logger';
 import { prisma } from '../utils/database';
@@ -20,6 +21,11 @@ interface Opportunity {
   location: Location;
 }
 
+interface ProfessionalInfoData {
+  operationArea: Location;
+  // Add other fields as needed
+}
+
 class OpportunityConsumer {
   private connection: RabbitMQConnection;
   private emailTransporter: Transporter;
@@ -27,12 +33,12 @@ class OpportunityConsumer {
   constructor() {
     this.connection = new RabbitMQConnection();
     this.emailTransporter = createTransport({
-      host: config.smtp.host,
-      port: config.smtp.port,
-      secure: config.smtp.secure,
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
       auth: {
-        user: config.smtp.user,
-        pass: config.smtp.password,
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASSWORD || '',
       },
     });
   }
@@ -84,7 +90,7 @@ class OpportunityConsumer {
   private async sendOpportunityEmail(email: string, opportunity: Opportunity) {
     try {
       await this.emailTransporter.sendMail({
-        from: config.smtp.from,
+        from: process.env.SMTP_FROM || 'noreply@yourdomain.com',
         to: email,
         subject: `New Opportunity: ${opportunity.title}`,
         html: `
@@ -125,15 +131,18 @@ class OpportunityConsumer {
         const professionalInfo = await prisma.professionalInfo.findUnique({
           where: { clerkId: profile.clerkId },
           select: {
-            operationArea: true,
+            professionalInfo: true,
           },
         });
 
-        if (!professionalInfo?.operationArea) continue;
+        if (!professionalInfo?.professionalInfo) continue;
+
+        // Parse the professional info JSON
+        const profInfo = professionalInfo.professionalInfo as ProfessionalInfoData;
+        if (!profInfo.operationArea) continue;
 
         // Check if opportunity is within operation area
-        const operationArea = professionalInfo.operationArea as unknown as Location;
-        if (!this.isWithinRadius(operationArea, opportunity.location)) continue;
+        if (!this.isWithinRadius(profInfo.operationArea, opportunity.location)) continue;
 
         // Send email notification
         await this.sendOpportunityEmail(profile.email, opportunity);
