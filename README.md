@@ -561,3 +561,56 @@ When deploying in environments without full MongoDB replica set support, the app
 - Minimal performance impact
 - Graceful error recovery
 
+## Non-Transactional Profile Updates
+
+### Handling Profile Updates Without Replica Sets
+
+#### Key Features
+- Custom `safeProfileUpdate` method in `database.ts`
+- Fallback mechanism for profile updates
+- Supports both Prisma and direct MongoDB updates
+
+#### Usage Example
+```typescript
+// In ProfileController
+async updateProfile(req: Request, res: Response) {
+  try {
+    const clerkId = req.user?.sub;
+    const updateData = req.body;
+
+    // Uses safeProfileUpdate for robust update
+    const profile = await safeProfileUpdate(clerkId, updateData);
+    return res.json(profile);
+  } catch (error) {
+    // Error handling
+  }
+}
+```
+
+### Update Strategy
+1. Attempt Prisma update first
+2. Fallback to direct MongoDB update if replica set fails
+3. Comprehensive error logging
+4. Maintains update timestamp
+
+### Limitations
+- No multi-document transactions
+- Potential consistency challenges
+- Manual error handling required
+
+### Best Practices
+- Design simple, atomic update operations
+- Validate input data thoroughly
+- Monitor update success rates
+- Implement comprehensive logging
+
+### Error Handling
+- Catches replica set and transaction errors
+- Provides fallback update mechanism
+- Logs detailed error information
+
+### Performance Considerations
+- Minimal overhead
+- Direct database operations
+- Reduced transaction complexity
+

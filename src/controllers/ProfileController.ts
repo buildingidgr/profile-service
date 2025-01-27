@@ -6,6 +6,7 @@ import { prisma } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
 import { MongoClient, ObjectId } from 'mongodb';
 import { config } from '../config';
+import { safeProfileUpdate } from '../utils/database';
 
 // Extend Express Request type to include userId
 declare global {
@@ -76,10 +77,8 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const profile = await prisma.profile.update({
-        where: { clerkId },
-        data: updateData,
-      });
+      // Use the new safeProfileUpdate method
+      const profile = await safeProfileUpdate(clerkId, updateData);
 
       return res.json(profile);
     } catch (error) {
@@ -248,7 +247,7 @@ export class ProfileController {
         },
         { 
           upsert: true, 
-          returnDocument: 'after' 
+          returnDocument: 'after'
         }
       );
 

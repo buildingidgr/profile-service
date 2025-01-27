@@ -10,7 +10,7 @@ declare global {
   var mongoClient: MongoClient | undefined
 }
 
-// Configure Prisma client with error handling
+// Configure Prisma client with non-transactional settings
 export const prisma = new PrismaClient({
   datasources: {
     db: {
@@ -40,26 +40,37 @@ export async function connectToDatabase() {
   }
 }
 
-// Custom error handling middleware
-prisma.$use(async (params, next) => {
+// Custom non-transactional update method
+export async function safeProfileUpdate(clerkId: string, data: any) {
   try {
-    return await next(params);
+    // Direct update without transaction
+    const result = await prisma.profile.update({
+      where: { clerkId },
+      data
+    });
+    return result;
   } catch (error: any) {
-    // Log the specific error
-    logger.error('Prisma operation error:', error);
+    logger.error('Profile update error:', error);
     
-    // Specific handling for replica set or transaction-related errors
-    if (error.message?.includes('replica set') || 
-        error.message?.includes('transaction')) {
-      logger.warn('Transaction or replica set operation not supported. Falling back to standard operation.');
-      
-      // Optional: Implement custom fallback logic
-      // For example, you might retry the operation without transactions
-      // or provide a more specific error response
+    // Fallback to direct MongoDB update if Prisma fails
+    if (error.message.includes('replica set')) {
+      try {
+        const collection = mongoClient.db().collection('Profile');
+        const result = await collection.updateOne(
+          { clerkId },
+          { $set: { ...data, updatedAt: new Date() } }
+        );
+        return result;
+      } catch (mongoError) {
+        logger.error('Fallback MongoDB update failed:', mongoError);
+        throw mongoError;
+      }
     }
     
-    // Re-throw the error after logging
     throw error;
   }
-});
+}
+
+// Remove transaction middleware
+// prisma.$use is removed as it's no longer needed
 
