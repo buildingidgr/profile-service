@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { ProfileService } from '../services/ProfileService';
 import authService from '../services/authService';
 import { createLogger } from '../utils/logger';
-import { prisma } from '../utils/database';
+import { prisma, safeGetPreferences } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
 import { MongoClient, ObjectId } from 'mongodb';
 import { config } from '../config';
@@ -148,17 +148,18 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const preferences = await prisma.userPreferences.findUnique({
-        where: { clerkId },
-      });
-
-      if (!preferences) {
-        return res.status(404).json({ error: 'Preferences not found' });
-      }
+      // Use the new safeGetPreferences method
+      const preferences = await safeGetPreferences(clerkId);
 
       return res.json(preferences);
     } catch (error) {
       logger.error('Error getting preferences:', error);
+      
+      // Check if preferences not found
+      if (error instanceof Error && error.message === 'Preferences not found') {
+        return res.status(404).json({ error: 'Preferences not found' });
+      }
+      
       return res.status(500).json({ error: 'Internal server error' });
     }
   }

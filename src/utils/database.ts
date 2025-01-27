@@ -40,7 +40,7 @@ export async function connectToDatabase() {
   }
 }
 
-// Define an interface matching the Profile document structure
+// Define interfaces for document structures
 interface ProfileDocument extends Document {
   _id: ObjectId;
   clerkId: string;
@@ -53,6 +53,14 @@ interface ProfileDocument extends Document {
   lastName?: string;
   avatarUrl?: string;
   apiKey?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface PreferencesDocument extends Document {
+  _id: ObjectId;
+  clerkId: string;
+  preferences: any;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -123,6 +131,40 @@ export async function safeProfileUpdate(clerkId: string, data: any) {
     }
     
     // Re-throw other types of errors
+    throw error;
+  }
+}
+
+// Method to retrieve user preferences with consistent return structure
+export async function safeGetPreferences(clerkId: string) {
+  try {
+    // Try Prisma first
+    const preferences = await prisma.userPreferences.findUnique({
+      where: { clerkId }
+    });
+
+    if (preferences) {
+      return preferences;
+    }
+
+    // Fallback to direct MongoDB retrieval
+    const collection = mongoClient.db().collection('UserPreferences');
+    const doc = await collection.findOne({ clerkId }) as PreferencesDocument;
+
+    if (doc) {
+      return {
+        id: doc._id.toString(),
+        clerkId: doc.clerkId,
+        preferences: doc.preferences,
+        createdAt: doc.createdAt,
+        updatedAt: doc.updatedAt
+      };
+    }
+
+    // If no preferences found
+    throw new Error('Preferences not found');
+  } catch (error) {
+    logger.error('Error retrieving preferences:', error);
     throw error;
   }
 }
