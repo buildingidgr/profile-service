@@ -1,10 +1,8 @@
-import { prisma } from '../utils/database';
-import { redis } from '../utils/redis';
-import { BadRequestError } from '../utils/errors';
 import { createLogger } from '../utils/logger';
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient } from 'mongodb';
 import crypto from 'crypto';
 import { RedisService } from './RedisService';
+import { BadRequestError } from '../utils/errors';
 import { PreferencesService } from './PreferencesService';
 
 const logger = createLogger('ProfileService');

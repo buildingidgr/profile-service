@@ -1,8 +1,6 @@
 import { prisma } from '../utils/database';
 import { createLogger } from '../utils/logger';
-import { PreferencesService } from './PreferencesService';
-import nodemailer from 'nodemailer';
-import { config } from '../config';
+import { createTransport, Transporter } from 'nodemailer';
 
 const logger = createLogger('OpportunityNotificationService');
 
@@ -17,22 +15,24 @@ interface Opportunity {
   title: string;
   description: string;
   location: Location;
-  // Add other relevant fields
+}
+
+interface ProfessionalInfoData {
+  operationArea: Location;
+  // Add other fields as needed
 }
 
 export class OpportunityNotificationService {
-  private preferencesService: PreferencesService;
-  private emailTransporter: nodemailer.Transporter;
+  private emailTransporter: Transporter;
 
   constructor() {
-    this.preferencesService = new PreferencesService();
-    this.emailTransporter = nodemailer.createTransport({
-      host: config.smtp.host,
-      port: config.smtp.port,
-      secure: true,
+    this.emailTransporter = createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
       auth: {
-        user: config.smtp.user,
-        pass: config.smtp.password,
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASSWORD || '',
       },
     });
   }
@@ -64,8 +64,17 @@ export class OpportunityNotificationService {
 
   private async shouldSendEmail(clerkId: string): Promise<boolean> {
     try {
-      const preferences = await this.preferencesService.getPreferences(clerkId);
-      return preferences.notifications.email.updates;
+      const preferences = await prisma.userPreferences.findUnique({
+        where: { clerkId },
+        select: {
+          preferences: true,
+        },
+      });
+
+      if (!preferences) return false;
+
+      const { notifications } = preferences.preferences as any;
+      return notifications?.email?.updates || false;
     } catch (error) {
       logger.error('Error checking email preferences:', error);
       return false;
@@ -75,7 +84,7 @@ export class OpportunityNotificationService {
   private async sendOpportunityEmail(email: string, opportunity: Opportunity) {
     try {
       await this.emailTransporter.sendMail({
-        from: config.smtp.from,
+        from: process.env.SMTP_FROM || 'noreply@yourdomain.com',
         to: email,
         subject: `New Opportunity: ${opportunity.title}`,
         html: `
@@ -83,7 +92,6 @@ export class OpportunityNotificationService {
           <h3>${opportunity.title}</h3>
           <p>${opportunity.description}</p>
           <p>Location: ${opportunity.location.latitude}, ${opportunity.location.longitude}</p>
-          <!-- Add more opportunity details as needed -->
         `,
       });
       logger.info(`Opportunity notification email sent to ${email}`);
@@ -117,15 +125,15 @@ export class OpportunityNotificationService {
         const professionalInfo = await prisma.professionalInfo.findUnique({
           where: { clerkId: profile.clerkId },
           select: {
-            operationArea: true,
+            professionalInfo: true,
           },
         });
 
-        if (!professionalInfo?.operationArea) continue;
+        if (!professionalInfo?.professionalInfo) continue;
 
-        // Check if opportunity is within operation area
-        const operationArea = professionalInfo.operationArea as unknown as Location;
-        if (!this.isWithinRadius(operationArea, opportunity.location)) continue;
+        // Parse the professional info JSON and ensure it has the right shape
+        const profInfo = professionalInfo.professionalInfo as unknown as ProfessionalInfoData;
+        if (!profInfo.operationArea) continue;
 
         // Send email notification
         await this.sendOpportunityEmail(profile.email, opportunity);

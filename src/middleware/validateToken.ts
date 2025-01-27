@@ -3,6 +3,15 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config';
 import { createLogger } from '../utils/logger';
 
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: jwt.JwtPayload;
+    }
+  }
+}
+
 const logger = createLogger('validateToken');
 
 export const validateToken = (req: Request, res: Response, next: NextFunction) => {
@@ -14,7 +23,7 @@ export const validateToken = (req: Request, res: Response, next: NextFunction) =
     }
 
     try {
-      const decoded = jwt.verify(token, config.jwtSecret || '');
+      const decoded = jwt.verify(token, config.jwtSecret || '') as jwt.JwtPayload;
       req.user = decoded;
       return next();
     } catch (error) {

@@ -7,6 +7,16 @@ import { createLogger } from '../utils/logger';
 import { prisma } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
 
+// Extend Express Request type to include userId
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+      user?: any;
+    }
+  }
+}
+
 const logger = createLogger('ProfileController');
 
 export class ProfileController {
@@ -206,7 +216,7 @@ export class ProfileController {
     }
   }
 
-  getProfilePreferences = async (req: Request, res: Response, next: NextFunction) => {
+  async getProfilePreferences(req: Request, res: Response) {
     try {
       const requestingUserId = req.userId;
 
@@ -219,13 +229,14 @@ export class ProfileController {
         : `user_${requestingUserId}`;
 
       const preferences = await this.preferencesService.getPreferences(clerkId);
-      res.json(preferences);
+      return res.json(preferences);
     } catch (error) {
-      next(error);
+      logger.error('Error getting profile preferences:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
-  };
+  }
 
-  updateProfilePreferences = async (req: Request, res: Response, next: NextFunction) => {
+  async updateProfilePreferences(req: Request, res: Response) {
     try {
       const requestingUserId = req.userId;
 
@@ -238,13 +249,14 @@ export class ProfileController {
         : `user_${requestingUserId}`;
 
       const preferences = await this.preferencesService.updatePreferences(clerkId, req.body);
-      res.json(preferences);
+      return res.json(preferences);
     } catch (error) {
-      next(error);
+      logger.error('Error updating profile preferences:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
-  };
+  }
 
-  generateApiKey = async (req: Request, res: Response, next: NextFunction) => {
+  async generateApiKey(req: Request, res: Response) {
     try {
       const profileId = req.params.id;
       const requestingUserId = req.userId;
@@ -259,7 +271,7 @@ export class ProfileController {
       const apiKey = await this.profileService.generateAndStoreApiKey(profileId);
       const tokens = await authService.exchangeApiKey(apiKey);
       
-      res.json({
+      return res.json({
         apiKey,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
@@ -267,8 +279,8 @@ export class ProfileController {
         expires_in: tokens.expires_in
       });
     } catch (error) {
-      console.error('Error generating API key:', error);
-      res.status(500).json({ error: 'Failed to generate API key' });
+      logger.error('Error generating API key:', error);
+      return res.status(500).json({ error: 'Failed to generate API key' });
     }
-  };
+  }
 }
