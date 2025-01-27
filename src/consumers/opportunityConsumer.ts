@@ -108,6 +108,12 @@ class OpportunityConsumer {
 
   async handleOpportunity(opportunity: Opportunity) {
     try {
+      logger.info('Processing opportunity:', {
+        opportunityId: opportunity.id,
+        title: opportunity.title,
+        location: opportunity.location
+      });
+
       // Get all profiles with professional info
       const profiles = await prisma.profile.findMany({
         where: {
@@ -119,12 +125,20 @@ class OpportunityConsumer {
         },
       });
 
+      logger.info(`Found ${profiles.length} verified profiles to process`);
+
       for (const profile of profiles) {
-        if (!profile.email) continue;
+        if (!profile.email) {
+          logger.debug(`Skipping profile ${profile.clerkId}: No email found`);
+          continue;
+        }
 
         // Check email preferences
         const shouldSend = await this.shouldSendEmail(profile.clerkId);
-        if (!shouldSend) continue;
+        if (!shouldSend) {
+          logger.debug(`Skipping profile ${profile.clerkId}: Email notifications disabled`);
+          continue;
+        }
 
         // Get professional info with location
         const professionalInfo = await prisma.professionalInfo.findUnique({
@@ -134,14 +148,32 @@ class OpportunityConsumer {
           },
         });
 
-        if (!professionalInfo?.professionalInfo) continue;
+        if (!professionalInfo?.professionalInfo) {
+          logger.debug(`Skipping profile ${profile.clerkId}: No professional info found`);
+          continue;
+        }
 
         // Parse the professional info JSON and ensure it has the right shape
         const profInfo = professionalInfo.professionalInfo as unknown as ProfessionalInfoData;
-        if (!profInfo.operationArea) continue;
+        if (!profInfo.operationArea) {
+          logger.debug(`Skipping profile ${profile.clerkId}: No operation area defined`);
+          continue;
+        }
 
         // Check if opportunity is within operation area
-        if (!this.isWithinRadius(profInfo.operationArea, opportunity.location)) continue;
+        const isWithin = this.isWithinRadius(profInfo.operationArea, opportunity.location);
+        if (!isWithin) {
+          logger.debug(`Skipping profile ${profile.clerkId}: Opportunity outside operation area`, {
+            opportunityLocation: opportunity.location,
+            operationArea: profInfo.operationArea
+          });
+          continue;
+        }
+
+        logger.info(`Sending opportunity notification to profile ${profile.clerkId}`, {
+          email: profile.email,
+          opportunityId: opportunity.id
+        });
 
         // Send email notification
         await this.sendOpportunityEmail(profile.email, opportunity);
@@ -163,14 +195,41 @@ class OpportunityConsumer {
       logger.info('Started consuming from public-opportunities queue');
       
       channel.consume(queueName, async (msg: ConsumeMessage | null) => {
-        if (!msg) return;
+        if (!msg) {
+          logger.warn('Received null message from queue');
+          return;
+        }
         
         try {
-          const opportunity = JSON.parse(msg.content.toString()) as Opportunity;
+          logger.info('Received message from queue', {
+            messageId: msg.properties.messageId,
+            timestamp: msg.properties.timestamp,
+            contentType: msg.properties.contentType
+          });
+
+          const rawContent = msg.content.toString();
+          logger.debug('Raw message content:', rawContent);
+
+          const opportunity = JSON.parse(rawContent) as Opportunity;
+          logger.info('Parsed opportunity from message:', {
+            opportunityId: opportunity.id,
+            title: opportunity.title
+          });
+
           await this.handleOpportunity(opportunity);
+          
+          logger.info('Successfully processed opportunity', {
+            opportunityId: opportunity.id,
+            messageId: msg.properties.messageId
+          });
+          
           channel.ack(msg);
         } catch (error) {
-          logger.error('Error processing message:', error);
+          logger.error('Error processing message:', {
+            error,
+            messageId: msg.properties.messageId,
+            content: msg.content.toString()
+          });
           // Nack the message and don't requeue it if it's malformed
           channel.nack(msg, false, false);
         }
