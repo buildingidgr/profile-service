@@ -1,6 +1,9 @@
 # Use an official Node runtime as the base image
 FROM node:18-alpine
 
+# Install OpenSSL and other required dependencies
+RUN apk add --no-cache openssl openssl-dev
+
 # Set the working directory in the container
 WORKDIR /app
 
@@ -27,5 +30,5 @@ RUN npm run build
 EXPOSE 3000
 
 # Start the application
-CMD ["node", "dist/api-service.js"]
+CMD ["npm", "start"]
 
