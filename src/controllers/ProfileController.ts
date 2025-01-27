@@ -234,12 +234,23 @@ export class ProfileController {
       const database = mongoClient.db();
       const professionalInfoCollection = database.collection('ProfessionalInfo');
       
-      // First, update or insert the document
-      const updateResult = await professionalInfoCollection.updateOne(
+      // Find existing document first to perform partial update
+      const existingDoc = await professionalInfoCollection.findOne({ clerkId });
+
+      // Merge existing data with new data
+      const updatedData = existingDoc 
+        ? {
+            ...existingDoc.professionalInfo,
+            ...professionalData
+          }
+        : professionalData;
+
+      // Perform update with merged data
+      await professionalInfoCollection.updateOne(
         { clerkId },
         { 
           $set: { 
-            professionalInfo: professionalData,
+            professionalInfo: updatedData,
             updatedAt: new Date() 
           },
           $setOnInsert: { 
@@ -250,7 +261,7 @@ export class ProfileController {
         { upsert: true }
       );
 
-      // Then, retrieve the updated document
+      // Retrieve the updated document
       const updatedDoc = await professionalInfoCollection.findOne({ clerkId });
 
       if (!updatedDoc) {
