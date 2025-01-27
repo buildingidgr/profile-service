@@ -53,11 +53,12 @@ export class ProfileController {
 
   async updateProfile(req: Request, res: Response) {
     try {
-      const { clerkId } = req.params;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
       const updateData = req.body;
 
       if (!clerkId) {
-        return res.status(400).json({ error: 'Clerk ID is required' });
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
       const profile = await prisma.profile.update({
@@ -74,14 +75,19 @@ export class ProfileController {
 
   async createProfile(req: Request, res: Response) {
     try {
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
       const profileData = req.body;
 
-      if (!profileData.clerkId) {
-        return res.status(400).json({ error: 'Clerk ID is required' });
+      if (!clerkId) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
+      // Ensure the profile data uses the authenticated user's ID
+      profileData.clerkId = clerkId;
+
       const existingProfile = await prisma.profile.findUnique({
-        where: { clerkId: profileData.clerkId },
+        where: { clerkId },
       });
 
       if (existingProfile) {
@@ -101,10 +107,11 @@ export class ProfileController {
 
   async deleteProfile(req: Request, res: Response) {
     try {
-      const { clerkId } = req.params;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
-        return res.status(400).json({ error: 'Clerk ID is required' });
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
       await prisma.profile.delete({
@@ -120,10 +127,11 @@ export class ProfileController {
 
   async getPreferences(req: Request, res: Response) {
     try {
-      const { clerkId } = req.params;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
-        return res.status(400).json({ error: 'Clerk ID is required' });
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
       const preferences = await prisma.userPreferences.findUnique({
@@ -143,11 +151,12 @@ export class ProfileController {
 
   async updatePreferences(req: Request, res: Response) {
     try {
-      const { clerkId } = req.params;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
       const preferencesData = req.body;
 
       if (!clerkId) {
-        return res.status(400).json({ error: 'Clerk ID is required' });
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
       const preferences = await prisma.userPreferences.upsert({
@@ -168,10 +177,11 @@ export class ProfileController {
 
   async getProfessionalInfo(req: Request, res: Response) {
     try {
-      const { clerkId } = req.params;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
-        return res.status(400).json({ error: 'Clerk ID is required' });
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
       const professionalInfo = await prisma.professionalInfo.findUnique({
@@ -191,11 +201,12 @@ export class ProfileController {
 
   async updateProfessionalInfo(req: Request, res: Response) {
     try {
-      const { clerkId } = req.params;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
       const professionalData = req.body;
 
       if (!clerkId) {
-        return res.status(400).json({ error: 'Clerk ID is required' });
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
       const professionalInfo = await prisma.professionalInfo.upsert({
@@ -256,17 +267,14 @@ export class ProfileController {
 
   async generateApiKey(req: Request, res: Response) {
     try {
-      const profileId = req.params.id;
-      const requestingUserId = req.userId;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
 
-      if (!requestingUserId || profileId !== requestingUserId) {
-        return res.status(403).json({ 
-          error: 'Forbidden',
-          message: 'You can only generate API keys for your own profile' 
-        });
+      if (!clerkId) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
       
-      const apiKey = await this.profileService.generateAndStoreApiKey(profileId);
+      const apiKey = await this.profileService.generateAndStoreApiKey(clerkId);
       const tokens = await authService.exchangeApiKey(apiKey);
       
       return res.json({
