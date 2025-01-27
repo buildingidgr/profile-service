@@ -13,19 +13,30 @@ import './consumers/opportunityConsumer';
 const logger = createLogger('api-service');
 const app: Application = express();
 
-// Trust proxy for accurate rate limiting
-app.set('trust proxy', true);
+// Trust proxy configuration with additional security
+app.set('trust proxy', 1); // Only trust first proxy
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Rate limiting
+// Rate limiting with more secure configuration
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  skipFailedRequests: true, // Don't count failed requests
+  keyGenerator: (req) => {
+    // Use a combination of IP and user ID if authenticated
+    const baseIP = req.ip;
+    const userId = req.user?.sub || req.userId;
+    return userId ? `${baseIP}-${userId}` : baseIP;
+  },
+  validate: {
+    trustProxy: true,
+    xForwardedForHeader: true
+  }
 });
 
 app.use(limiter);

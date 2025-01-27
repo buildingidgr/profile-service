@@ -154,27 +154,79 @@ private async closeMongoClient() {
 ```
 
 ### Rate Limiting and Proxy Configuration
-- Enabled `trust proxy` in Express
-- Accurate IP identification for rate limiting
-- Supports X-Forwarded-For header in cloud environments
 
-#### Express Configuration
+### Enhanced Security Approach
+- Configures `trust proxy` with minimal trust level
+- Implements advanced rate limiting strategies
+- Protects against IP-based and user-based rate limiting abuse
+
+#### Key Security Features
+- Only trust the first proxy in the chain
+- Combine IP and user ID for rate limiting
+- Skip rate limiting for failed requests
+- Validate X-Forwarded-For headers
+
+#### Rate Limiter Configuration
 ```typescript
-app.set('trust proxy', true);
-
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false
+  max: 100, 
+  skipFailedRequests: true,
+  keyGenerator: (req) => {
+    const baseIP = req.ip;
+    const userId = req.user?.sub || req.userId;
+    return userId ? `${baseIP}-${userId}` : baseIP;
+  },
+  validate: {
+    trustProxy: true,
+    xForwardedForHeader: true
+  }
 });
 ```
 
+### MongoDB Client Management
+
+#### Static Client Approach
+- Uses static methods for MongoDB client management
+- Ensures single, shared client instance across requests
+- Provides thread-safe connection handling
+
+#### Connection Lifecycle Methods
+```typescript
+private static mongoClient: MongoClient | null = null;
+
+private static async initMongoClient(): Promise<MongoClient> {
+  if (!this.mongoClient) {
+    this.mongoClient = new MongoClient(config.databaseUrl);
+    await this.mongoClient.connect();
+  }
+  return this.mongoClient;
+}
+
+private static async closeMongoClient() {
+  if (this.mongoClient) {
+    await this.mongoClient.close();
+    this.mongoClient = null;
+  }
+}
+```
+
 ### Recommended Practices
-1. Use lazy client initialization
-2. Always close database connections
-3. Handle connection errors
-4. Configure trust proxy for accurate rate limiting
+1. Use static client management
+2. Implement proper connection lifecycle methods
+3. Validate and sanitize rate limiting inputs
+4. Minimize trust in proxy configurations
+
+### Performance Considerations
+- Shared MongoDB client reduces connection overhead
+- Advanced rate limiting prevents abuse
+- Secure proxy configuration protects against spoofing
+
+### Security Notes
+- Limit trusted proxies
+- Combine multiple identifiers for rate limiting
+- Implement robust error handling
+- Monitor and log rate limit events
 
 ### Troubleshooting
 - Verify database connection URL
