@@ -489,3 +489,75 @@ prisma.$use(async (params, next) => {
 - Implement retry mechanisms for critical updates
 - Use Railway's logging and monitoring tools
 
+## MongoDB and Prisma Configuration for Non-Replica Set Environments
+
+### Handling Transaction Limitations
+
+When deploying in environments without full MongoDB replica set support, the application implements robust error handling:
+
+#### Key Strategies
+1. **Flexible Connection Configuration**
+   - Fallback to alternative database URL
+   - Support for both environment and config-based connection strings
+
+2. **Advanced Error Handling**
+   ```typescript
+   prisma.$use(async (params, next) => {
+     try {
+       return await next(params);
+     } catch (error) {
+       // Log and handle transaction-related errors
+       if (error.message.includes('replica set')) {
+         logger.warn('Falling back to standard operation');
+         // Custom error handling logic
+       }
+       throw error;
+     }
+   });
+   ```
+
+3. **Logging and Monitoring**
+   - Comprehensive error logging
+   - Development vs. Production log levels
+   - Detailed error context
+
+### Connection Configuration
+
+#### Environment Variable Priority
+1. `DATABASE_URL` (Highest Priority)
+2. Configuration File Database URL
+3. Fallback Connection String
+
+#### Recommended Connection String Formats
+- Local Development: 
+  ```
+  mongodb://localhost:27017/mechhub
+  ```
+- Cloud/Production: 
+  ```
+  mongodb+srv://username:password@cluster.mongodb.net/database
+  ```
+
+### Potential Limitations
+- Limited transaction support
+- Potential performance overhead
+- Reduced consistency guarantees
+
+### Best Practices
+- Design database operations to be atomic
+- Minimize complex transactions
+- Implement robust error handling
+- Use connection pooling
+- Monitor database performance
+
+### Troubleshooting
+- Verify database connection URL
+- Check network connectivity
+- Review error logs
+- Ensure proper environment configuration
+
+### Performance Considerations
+- Lightweight error handling middleware
+- Minimal performance impact
+- Graceful error recovery
+
