@@ -241,22 +241,22 @@ class OpportunityConsumer {
           });
 
           const rawContent = msg.content.toString();
-          // Log the exact raw message for debugging
-          logger.info('Raw message content:', rawContent);
+          // Log the exact raw message for debugging with proper formatting
+          logger.info('Raw message content:\n' + JSON.stringify(JSON.parse(rawContent), null, 2));
 
           const queueMessage = JSON.parse(rawContent) as QueueMessage;
           
-          // Log the complete parsed message structure
-          logger.info('Complete parsed message:', {
+          // Log the complete parsed message structure with proper formatting
+          logger.info('Complete parsed message:\n' + JSON.stringify({
             eventType: queueMessage.eventType,
             opportunity: {
               id: queueMessage.opportunity.id,
-              data: queueMessage.opportunity.data, // Log the complete data object
+              data: queueMessage.opportunity.data,
               status: queueMessage.opportunity.status,
               lastStatusChange: queueMessage.opportunity.lastStatusChange,
               metadata: queueMessage.opportunity.metadata
             }
-          });
+          }, null, 2));
 
           // Transform the queue message into the Opportunity format expected by handleOpportunity
           const opportunity: Opportunity = {
@@ -266,8 +266,14 @@ class OpportunityConsumer {
             location: queueMessage.opportunity.data.location
           };
 
-          // Log the transformed opportunity object
-          logger.info('Transformed opportunity object:', opportunity);
+          // Log the transformed opportunity object with proper formatting
+          logger.info('Transformed opportunity object:\n' + JSON.stringify(opportunity, null, 2));
+
+          // Also log the location data specifically since it's crucial for matching
+          logger.info('Location data for matching:', {
+            opportunityLocation: opportunity.location,
+            rawLocationData: queueMessage.opportunity.data.location
+          });
 
           await this.handleOpportunity(opportunity);
           
@@ -283,7 +289,8 @@ class OpportunityConsumer {
           logger.error('Error processing queue message:', {
             error,
             messageId: msg.properties.messageId,
-            content: msg.content.toString()
+            rawContent: msg.content.toString(),
+            parseError: error instanceof SyntaxError ? 'Invalid JSON format' : 'Processing error'
           });
           // Nack the message and don't requeue it if it's malformed
           channel.nack(msg, false, false);
