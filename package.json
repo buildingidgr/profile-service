@@ -2,8 +2,9 @@
   "name": "mechhub-api",
   "version": "1.0.0",
   "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && npm run prisma:generate && tsc",
     "start": "node dist/api-service.js",
-    "build": "npm run prisma:generate && tsc",
     "dev": "ts-node-dev --respawn src/api-service.ts",
     "prisma:generate": "prisma generate",
     "prisma:db:push": "prisma db push",

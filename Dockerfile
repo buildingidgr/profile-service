@@ -1,34 +1,27 @@
-# Use an official Node runtime as the base image
+# Use official Node.js LTS image
 FROM node:18-alpine
 
-# Install OpenSSL and other required dependencies
-RUN apk add --no-cache openssl openssl-dev
-
-# Set the working directory in the container
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if it exists)
+# Copy package.json and package-lock.json
 COPY package*.json ./
-
-# Generate package-lock.json if it doesn't exist
-RUN test -f package-lock.json || npm install --package-lock-only
 
 # Install dependencies
-COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 # Copy the rest of the application code
 COPY . .
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN npm run prisma:generate
 
-# Build the TypeScript project
+# Build TypeScript
 RUN npm run build
 
 # Expose the port the app runs on
 EXPOSE 3000
 
-# Start the application
+# Command to run the application
 CMD ["npm", "start"]
 

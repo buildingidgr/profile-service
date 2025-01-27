@@ -57,20 +57,31 @@ rabbitmq.connect().catch((error) => {
   logger.error('Failed to connect to RabbitMQ:', error);
 });
 
-try {
-  // API routes with JWT validation
-  app.use('/api/profiles', validateToken, profileRoutes);
+function startServer() {
+  try {
+    // API routes with JWT validation
+    app.use('/api/profiles', validateToken, profileRoutes);
 
-  // Error handling
-  app.use(errorHandler);
+    // Error handling
+    app.use(errorHandler);
 
-  // Start server
-  const port = config.port || 3000;
-  app.listen(port, () => {
-    logger.info(`Server is running on port ${port}`);
-  });
-} catch (error) {
-  logger.error('Failed to start server:', error);
-  process.exit(1);
+    // Start server
+    const port = config.port || 3000;
+    const server = app.listen(port, () => {
+      logger.info(`Server is running on port ${port}`);
+    });
+
+    return server;
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
 }
+
+// Only start the server if this file is being run directly
+if (require.main === module) {
+  startServer();
+}
+
+export { app, startServer };
 
