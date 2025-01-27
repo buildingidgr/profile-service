@@ -123,27 +123,43 @@ docker run -p 3000:3000 profile-service
 ## MongoDB Configuration
 
 ### Replica Set Requirement
-Prisma requires MongoDB to be configured as a replica set to support transactions. If you're using a single-node MongoDB setup, you'll need to modify your configuration:
+Prisma requires MongoDB to be configured as a replica set to support transactions. To work around this limitation:
 
-#### Local Development
-For local development, you can:
-1. Use MongoDB Atlas (which provides replica set by default)
-2. Convert your local MongoDB to a replica set:
-   ```bash
-   # Start MongoDB with replica set
-   mongod --replSet rs0
-   
-   # In MongoDB shell
-   rs.initiate()
-   ```
+#### Current Implementation
+- Direct MongoDB collection operations are used for professional info
+- Bypasses Prisma transaction requirements
+- Provides atomic upsert functionality
+- Ensures compatibility with single-node MongoDB setups
 
-#### Railway Deployment
-- Ensure your MongoDB service is configured as a replica set
-- If using Railway, most MongoDB services are pre-configured with replica set support
+#### Approach Details
+- Uses `findOneAndUpdate()` with `upsert` option
+- Handles both update and create scenarios in a single operation
+- Avoids Prisma transaction limitations
+
+### Recommended Configurations
+1. Use MongoDB Atlas (provides replica set by default)
+2. Configure local MongoDB as a replica set
+3. Use direct MongoDB collection methods for complex operations
 
 ### Troubleshooting
 - Error: "Prisma needs to perform transactions, which requires your MongoDB server to be run as a replica set"
-- Solution: Configure your MongoDB instance as a replica set or modify Prisma queries to avoid transactions
+- Solution: 
+  - Use direct MongoDB collection methods
+  - Configure MongoDB as a replica set
+  - Use a database service that supports replica sets
+
+#### Local Development Setup
+```bash
+# Start MongoDB with replica set
+mongod --replSet rs0
+
+# In MongoDB shell
+rs.initiate()
+```
+
+#### Railway Deployment
+- Ensure MongoDB service is configured with replica set support
+- Most Railway MongoDB services are pre-configured
 
 # MechHub API
 

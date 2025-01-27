@@ -181,9 +181,10 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const professionalInfo = await prisma.professionalInfo.findUnique({
-        where: { clerkId },
-      });
+      // Use direct MongoDB collection to avoid Prisma transactions
+      const professionalInfoCollection = (prisma.client as any)._runtimeModel.collections.ProfessionalInfo;
+      
+      const professionalInfo = await professionalInfoCollection.findOne({ clerkId });
 
       if (!professionalInfo) {
         return res.status(404).json({ error: 'Professional info not found' });
@@ -206,32 +207,28 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // First, check if professional info exists
-      const existingInfo = await prisma.professionalInfo.findUnique({
-        where: { clerkId },
-      });
-
-      let professionalInfo;
-      if (existingInfo) {
-        // If exists, update
-        professionalInfo = await prisma.professionalInfo.update({
-          where: { clerkId },
-          data: { 
+      // Use direct MongoDB collection to avoid Prisma transactions
+      const professionalInfoCollection = (prisma.client as any)._runtimeModel.collections.ProfessionalInfo;
+      
+      const result = await professionalInfoCollection.findOneAndUpdate(
+        { clerkId },
+        { 
+          $set: { 
             professionalInfo: professionalData,
-            updatedAt: new Date()
+            updatedAt: new Date() 
           },
-        });
-      } else {
-        // If not exists, create
-        professionalInfo = await prisma.professionalInfo.create({
-          data: {
+          $setOnInsert: { 
             clerkId,
-            professionalInfo: professionalData,
-          },
-        });
-      }
+            createdAt: new Date() 
+          }
+        },
+        { 
+          upsert: true, 
+          returnDocument: 'after' 
+        }
+      );
 
-      return res.json(professionalInfo);
+      return res.json(result);
     } catch (error) {
       logger.error('Error updating professional info:', error);
       return res.status(500).json({ error: 'Internal server error' });
