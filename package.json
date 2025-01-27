@@ -14,7 +14,7 @@
     "generate-lockfile": "npm install --package-lock-only"
   },
   "dependencies": {
-    "@prisma/client": "^4.14.0",
+    "@prisma/client": "4.16.2",
     "amqplib": "^0.10.3",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
@@ -24,7 +24,7 @@
     "jsonwebtoken": "^9.0.0",
     "mongodb": "^4.14.0",
     "nodemailer": "^6.9.9",
-    "prisma": "^4.14.0",
+    "prisma": "4.16.2",
     "redis": "^4.6.6",
     "winston": "^3.8.2"
   },

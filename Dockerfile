@@ -1,6 +1,9 @@
 # Use official Node.js LTS image
 FROM node:18-alpine
 
+# Install OpenSSL and other necessary dependencies
+RUN apk add --no-cache openssl
+
 # Set working directory
 WORKDIR /app
 
