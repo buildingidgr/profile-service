@@ -29,10 +29,11 @@ export class ProfileController {
 
   async getProfile(req: Request, res: Response) {
     try {
-      const { clerkId } = req.params;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
       
       if (!clerkId) {
-        return res.status(400).json({ error: 'Clerk ID is required' });
+        return res.status(401).json({ error: 'Unauthorized' });
       }
 
       const profile = await prisma.profile.findUnique({
