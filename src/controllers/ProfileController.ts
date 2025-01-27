@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { ProfileService } from '../services/ProfileService';
 import authService from '../services/authService';
 import { createLogger } from '../utils/logger';
-import { prisma, safeGetPreferences } from '../utils/database';
+import { prisma, safeGetPreferences, safeUpdatePreferences } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
 import { MongoClient, ObjectId } from 'mongodb';
 import { config } from '../config';
@@ -309,15 +309,8 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Directly use Prisma instead of preferencesService
-      const preferences = await prisma.userPreferences.upsert({
-        where: { clerkId },
-        update: { preferences: req.body },
-        create: {
-          clerkId,
-          preferences: req.body,
-        },
-      });
+      // Use the new safeUpdatePreferences method
+      const preferences = await safeUpdatePreferences(clerkId, req.body);
 
       return res.json(preferences);
     } catch (error) {

@@ -169,6 +169,71 @@ export async function safeGetPreferences(clerkId: string) {
   }
 }
 
+// Method to safely update user preferences
+export async function safeUpdatePreferences(clerkId: string, preferencesData: any) {
+  try {
+    // Try Prisma update first
+    try {
+      const preferences = await prisma.userPreferences.upsert({
+        where: { clerkId },
+        update: { preferences: preferencesData },
+        create: {
+          clerkId,
+          preferences: preferencesData,
+        },
+      });
+
+      return preferences;
+    } catch (prismaError: any) {
+      // If Prisma fails due to replica set, fall back to MongoDB
+      if (prismaError.message?.includes('replica set') || 
+          prismaError.message?.includes('transaction')) {
+        logger.warn('Prisma update failed. Falling back to direct MongoDB update.');
+        
+        const collection = mongoClient.db().collection('UserPreferences');
+        
+        // Perform upsert operation directly in MongoDB
+        await collection.updateOne(
+          { clerkId },
+          { 
+            $set: { 
+              preferences: preferencesData,
+              updatedAt: new Date() 
+            },
+            $setOnInsert: { 
+              clerkId,
+              createdAt: new Date() 
+            }
+          },
+          { upsert: true }
+        );
+
+        // Retrieve the updated document
+        const updatedDoc = await collection.findOne({ clerkId }) as PreferencesDocument;
+
+        if (updatedDoc) {
+          // Transform MongoDB result to match Prisma structure
+          return {
+            id: updatedDoc._id.toString(),
+            clerkId: updatedDoc.clerkId,
+            preferences: updatedDoc.preferences,
+            createdAt: updatedDoc.createdAt,
+            updatedAt: updatedDoc.updatedAt
+          };
+        }
+
+        throw new Error('Failed to update preferences');
+      }
+
+      // Re-throw other Prisma errors
+      throw prismaError;
+    }
+  } catch (error) {
+    logger.error('Error updating preferences:', error);
+    throw error;
+  }
+}
+
 // Optional: Add a global error handler for Prisma operations
 prisma.$use(async (params, next) => {
   try {
