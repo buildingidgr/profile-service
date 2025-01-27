@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { ProfileService } from '../services/ProfileService';
-import { PreferencesService } from '../services/PreferencesService';
 import authService from '../services/authService';
 import { createLogger } from '../utils/logger';
 import { prisma } from '../utils/database';
@@ -20,11 +19,9 @@ const logger = createLogger('ProfileController');
 
 export class ProfileController {
   private profileService: ProfileService;
-  private preferencesService: PreferencesService;
 
   constructor() {
     this.profileService = new ProfileService();
-    this.preferencesService = new PreferencesService();
   }
 
   async getProfile(req: Request, res: Response) {
@@ -234,7 +231,10 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const preferences = await this.preferencesService.getPreferences(clerkId);
+      // Directly use Prisma instead of preferencesService
+      const preferences = await prisma.userPreferences.findUnique({
+        where: { clerkId },
+      });
       
       if (!preferences) {
         return res.status(404).json({ error: 'Preferences not found' });
@@ -256,7 +256,16 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const preferences = await this.preferencesService.updatePreferences(clerkId, req.body);
+      // Directly use Prisma instead of preferencesService
+      const preferences = await prisma.userPreferences.upsert({
+        where: { clerkId },
+        update: { preferences: req.body },
+        create: {
+          clerkId,
+          preferences: req.body,
+        },
+      });
+
       return res.json(preferences);
     } catch (error) {
       logger.error('Error updating profile preferences:', error);
