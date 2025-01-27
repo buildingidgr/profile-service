@@ -127,23 +127,65 @@ Comprehensive type definitions are crucial for TypeScript development:
 6. Start the server: `npm start`
 
 ### TypeScript Configuration
-Key TypeScript compiler options:
-- `strict`: Enables comprehensive type checking
-- `esModuleInterop`: Allows default imports from CommonJS modules
-- `skipLibCheck`: Skips type checking of declaration files
-- `typeRoots`: Specifies locations of type definition files
 
-### Troubleshooting Type Errors
-- Ensure all dependencies have corresponding `@types` packages
-- Check `tsconfig.json` for correct type configuration
-- Verify package.json dev dependencies
+#### Compiler Options
+- `target`: Specifies ECMAScript target version
+- `module`: Sets module system (CommonJS)
+- `rootDir`: Defines source code directory
+- `outDir`: Specifies compiled JavaScript output directory
+- `esModuleInterop`: Enables default imports from CommonJS modules
+- `strict`: Enables comprehensive type checking
+- `skipLibCheck`: Skips type checking of declaration files
+
+#### Type Management
+- Use `@types` packages for type definitions
+- Extend built-in types for custom properties
+- Avoid type assertions when possible
+
+#### Request Type Extension Example
+```typescript
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: {
+      sub?: string;
+    };
+    userId?: string;
+  }
+}
+```
+
+#### Recommended Practices
+1. Use type definitions for all dependencies
+2. Leverage module augmentation for custom types
+3. Minimize use of type assertions
+4. Keep `tsconfig.json` configuration minimal and explicit
+
+#### Troubleshooting Type Errors
+- Verify `@types` packages are installed
+- Check package versions compatibility
+- Use `typeRoots` to specify type definition locations
 - Restart TypeScript server in your IDE
 
-### Recommended Development Tools
-- Visual Studio Code
-- ESLint
-- Prettier
-- TypeScript Language Server
+#### Advanced Type Configuration
+```json
+{
+  "compilerOptions": {
+    "types": ["node"],
+    "typeRoots": ["./node_modules/@types"],
+    "lib": [
+      "es2016",
+      "esnext.asynciterable",
+      "dom"
+    ]
+  }
+}
+```
+
+### Performance Considerations
+- Minimal type checking improves build speed
+- Use `skipLibCheck` to reduce compilation time
+- Keep type definitions up to date
+- Monitor TypeScript compiler performance
 
 ## Environment Variables
 - `DATABASE_URL`: MongoDB connection string

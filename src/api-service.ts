@@ -10,6 +10,16 @@ import { validateToken } from './middleware/validateToken';
 import { errorHandler } from './middleware/errorHandler';
 import './consumers/opportunityConsumer';
 
+// Extend Request interface to include custom properties
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: {
+      sub?: string;
+    };
+    userId?: string;
+  }
+}
+
 const logger = createLogger('api-service');
 const app: Application = express();
 
@@ -27,10 +37,10 @@ const limiter: RateLimitRequestHandler = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skipFailedRequests: true, // Don't count failed requests
-  keyGenerator: (req: Request): string => {
+  keyGenerator: (req): string => {
     // Use a combination of IP and user ID if authenticated
     const baseIP = req.ip;
-    const userId = (req as any).user?.sub || (req as any).userId;
+    const userId = req.user?.sub || req.userId;
     return userId ? `${baseIP}-${userId}` : baseIP;
   },
   validate: {

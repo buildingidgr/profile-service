@@ -9,16 +9,15 @@
     "strict": true,
     "skipLibCheck": true,
     "types": [
-      "node", 
-      "express", 
-      "express-rate-limit", 
-      "cors", 
-      "jsonwebtoken", 
-      "nodemailer", 
-      "mongodb"
+      "node"
     ],
     "typeRoots": [
       "./node_modules/@types"
+    ],
+    "lib": [
+      "es2016",
+      "esnext.asynciterable",
+      "dom"
     ]
   },
   "include": ["src/**/*"],
