@@ -122,54 +122,75 @@ docker run -p 3000:3000 profile-service
 
 ## MongoDB Configuration
 
-### Direct MongoDB Client Approach
-- Uses native MongoDB driver for professional info operations
-- Provides full control over database interactions
-- Ensures compatibility with various MongoDB configurations
+### Robust MongoDB Client Management
+- Implements lazy initialization of MongoDB client
+- Ensures single client instance per controller lifecycle
+- Provides safe connection and disconnection methods
 
-#### Key Changes
-- Directly instantiates `MongoClient` with connection URL
-- Uses `findOneAndUpdate()` for atomic upsert operations
-- Properly manages database connection lifecycle
-- Handles connection and disconnection in each method
+#### Key Improvements
+- Lazy client creation with `getMongoClient()`
+- Prevents multiple simultaneous connections
+- Safely closes and nullifies client after use
+- Handles connection errors gracefully
 
-### Connection Management
-- Creates a new MongoDB client for each request
-- Ensures connection is closed after operation
-- Prevents connection leaks and resource exhaustion
-
-### Recommended Practices
-1. Use environment-based connection configuration
-2. Implement proper error handling
-3. Manage connection lifecycle carefully
-4. Consider connection pooling for production
-
-### Troubleshooting
-- Ensure `DATABASE_URL` is correctly set in environment
-- Verify MongoDB server accessibility
-- Check network and firewall configurations
-
-#### Example Connection Setup
+### Connection Lifecycle
 ```typescript
-const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
-await mongoClient.connect();
-const database = mongoClient.db();
-const collection = database.collection('YourCollection');
-// Perform operations
-await mongoClient.close();
+private mongoClient: MongoClient | null = null;
+
+private async getMongoClient(): Promise<MongoClient> {
+  if (!this.mongoClient) {
+    this.mongoClient = new MongoClient(config.databaseUrl);
+    await this.mongoClient.connect();
+  }
+  return this.mongoClient;
+}
+
+private async closeMongoClient() {
+  if (this.mongoClient) {
+    await this.mongoClient.close();
+    this.mongoClient = null;
+  }
+}
 ```
 
+### Rate Limiting and Proxy Configuration
+- Enabled `trust proxy` in Express
+- Accurate IP identification for rate limiting
+- Supports X-Forwarded-For header in cloud environments
+
+#### Express Configuration
+```typescript
+app.set('trust proxy', true);
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+```
+
+### Recommended Practices
+1. Use lazy client initialization
+2. Always close database connections
+3. Handle connection errors
+4. Configure trust proxy for accurate rate limiting
+
+### Troubleshooting
+- Verify database connection URL
+- Check network and firewall configurations
+- Ensure proper error handling
+- Monitor connection lifecycle
+
 ### Performance Considerations
-- Each method creates and closes a new connection
-- For high-traffic scenarios, consider:
-  - Connection pooling
-  - Persistent connection strategies
-  - Caching connection instances
+- Lazy client creation reduces initial overhead
+- Single client instance per request
+- Proper connection management prevents resource leaks
 
 ### Security Notes
-- Always use secure, encrypted connection strings
+- Use secure, encrypted connection strings
 - Never hardcode database credentials
-- Use environment variables for sensitive information
+- Implement proper connection error handling
 
 # MechHub API
 

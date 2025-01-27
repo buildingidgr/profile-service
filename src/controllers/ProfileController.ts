@@ -21,11 +21,25 @@ const logger = createLogger('ProfileController');
 
 export class ProfileController {
   private profileService: ProfileService;
-  private mongoClient: MongoClient;
+  private mongoClient: MongoClient | null = null;
 
   constructor() {
     this.profileService = new ProfileService();
-    this.mongoClient = new MongoClient(config.databaseUrl);
+  }
+
+  private async getMongoClient(): Promise<MongoClient> {
+    if (!this.mongoClient) {
+      this.mongoClient = new MongoClient(config.databaseUrl);
+      await this.mongoClient.connect();
+    }
+    return this.mongoClient;
+  }
+
+  private async closeMongoClient() {
+    if (this.mongoClient) {
+      await this.mongoClient.close();
+      this.mongoClient = null;
+    }
   }
 
   async getProfile(req: Request, res: Response) {
@@ -186,8 +200,8 @@ export class ProfileController {
       }
 
       // Connect to MongoDB directly
-      await this.mongoClient.connect();
-      const database = this.mongoClient.db();
+      const mongoClient = await this.getMongoClient();
+      const database = mongoClient.db();
       const professionalInfoCollection = database.collection('ProfessionalInfo');
       
       const professionalInfo = await professionalInfoCollection.findOne({ clerkId });
@@ -201,7 +215,7 @@ export class ProfileController {
       logger.error('Error getting professional info:', error);
       return res.status(500).json({ error: 'Internal server error' });
     } finally {
-      await this.mongoClient.close();
+      await this.closeMongoClient();
     }
   }
 
@@ -216,8 +230,8 @@ export class ProfileController {
       }
 
       // Connect to MongoDB directly
-      await this.mongoClient.connect();
-      const database = this.mongoClient.db();
+      const mongoClient = await this.getMongoClient();
+      const database = mongoClient.db();
       const professionalInfoCollection = database.collection('ProfessionalInfo');
       
       const result = await professionalInfoCollection.findOneAndUpdate(
@@ -243,7 +257,7 @@ export class ProfileController {
       logger.error('Error updating professional info:', error);
       return res.status(500).json({ error: 'Internal server error' });
     } finally {
-      await this.mongoClient.close();
+      await this.closeMongoClient();
     }
   }
 
