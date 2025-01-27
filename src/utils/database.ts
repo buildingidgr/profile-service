@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { createLogger } from './logger'
 import { config } from '../config'
-import { MongoClient } from 'mongodb';
+import { MongoClient, Document } from 'mongodb';
 
 const logger = createLogger('database');
 
@@ -38,6 +38,23 @@ export async function connectToDatabase() {
     logger.error('Failed to connect to MongoDB database', error)
     process.exit(1)
   }
+}
+
+// Define an interface matching the Profile document structure
+interface ProfileDocument extends Document {
+  _id: any;
+  clerkId: string;
+  email?: string;
+  emailVerified: boolean;
+  phoneNumber?: string;
+  phoneVerified: boolean;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+  apiKey?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Custom non-transactional update method with advanced error handling
@@ -84,7 +101,28 @@ export async function safeProfileUpdate(clerkId: string, data: any) {
           }
         );
         
-        return result;
+        // Transform MongoDB result to Prisma-like response
+        const doc = result as unknown as ProfileDocument;
+        if (doc) {
+          return {
+            id: doc._id.toString(),
+            clerkId: doc.clerkId,
+            email: doc.email || null,
+            emailVerified: doc.emailVerified,
+            phoneNumber: doc.phoneNumber || null,
+            phoneVerified: doc.phoneVerified,
+            username: doc.username || null,
+            firstName: doc.firstName || null,
+            lastName: doc.lastName || null,
+            avatarUrl: doc.avatarUrl || null,
+            apiKey: doc.apiKey || null,
+            createdAt: doc.createdAt,
+            updatedAt: doc.updatedAt,
+            externalAccounts: [] // Add if needed
+          };
+        }
+        
+        throw new Error('No document found for update');
       } catch (mongoError) {
         logger.error('Fallback MongoDB update failed:', mongoError);
         throw mongoError;
