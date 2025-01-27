@@ -234,7 +234,8 @@ export class ProfileController {
       const database = mongoClient.db();
       const professionalInfoCollection = database.collection('ProfessionalInfo');
       
-      const result = await professionalInfoCollection.findOneAndUpdate(
+      // First, update or insert the document
+      const updateResult = await professionalInfoCollection.updateOne(
         { clerkId },
         { 
           $set: { 
@@ -246,13 +247,26 @@ export class ProfileController {
             createdAt: new Date() 
           }
         },
-        { 
-          upsert: true, 
-          returnDocument: 'after'
-        }
+        { upsert: true }
       );
 
-      return res.json(result);
+      // Then, retrieve the updated document
+      const updatedDoc = await professionalInfoCollection.findOne({ clerkId });
+
+      if (!updatedDoc) {
+        throw new Error('Failed to retrieve updated professional info');
+      }
+
+      // Transform the result to match previous structure
+      const transformedResult = {
+        id: updatedDoc._id.toString(),
+        clerkId: updatedDoc.clerkId,
+        professionalInfo: updatedDoc.professionalInfo,
+        createdAt: updatedDoc.createdAt,
+        updatedAt: updatedDoc.updatedAt
+      };
+
+      return res.json(transformedResult);
     } catch (error) {
       logger.error('Error updating professional info:', error);
       return res.status(500).json({ error: 'Internal server error' });
