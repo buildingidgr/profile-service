@@ -122,44 +122,54 @@ docker run -p 3000:3000 profile-service
 
 ## MongoDB Configuration
 
-### Replica Set Requirement
-Prisma requires MongoDB to be configured as a replica set to support transactions. To work around this limitation:
+### Direct MongoDB Client Approach
+- Uses native MongoDB driver for professional info operations
+- Provides full control over database interactions
+- Ensures compatibility with various MongoDB configurations
 
-#### Current Implementation
-- Direct MongoDB collection operations are used for professional info
-- Bypasses Prisma transaction requirements
-- Provides atomic upsert functionality
-- Ensures compatibility with single-node MongoDB setups
+#### Key Changes
+- Directly instantiates `MongoClient` with connection URL
+- Uses `findOneAndUpdate()` for atomic upsert operations
+- Properly manages database connection lifecycle
+- Handles connection and disconnection in each method
 
-#### Approach Details
-- Uses `findOneAndUpdate()` with `upsert` option
-- Handles both update and create scenarios in a single operation
-- Avoids Prisma transaction limitations
+### Connection Management
+- Creates a new MongoDB client for each request
+- Ensures connection is closed after operation
+- Prevents connection leaks and resource exhaustion
 
-### Recommended Configurations
-1. Use MongoDB Atlas (provides replica set by default)
-2. Configure local MongoDB as a replica set
-3. Use direct MongoDB collection methods for complex operations
+### Recommended Practices
+1. Use environment-based connection configuration
+2. Implement proper error handling
+3. Manage connection lifecycle carefully
+4. Consider connection pooling for production
 
 ### Troubleshooting
-- Error: "Prisma needs to perform transactions, which requires your MongoDB server to be run as a replica set"
-- Solution: 
-  - Use direct MongoDB collection methods
-  - Configure MongoDB as a replica set
-  - Use a database service that supports replica sets
+- Ensure `DATABASE_URL` is correctly set in environment
+- Verify MongoDB server accessibility
+- Check network and firewall configurations
 
-#### Local Development Setup
-```bash
-# Start MongoDB with replica set
-mongod --replSet rs0
-
-# In MongoDB shell
-rs.initiate()
+#### Example Connection Setup
+```typescript
+const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
+await mongoClient.connect();
+const database = mongoClient.db();
+const collection = database.collection('YourCollection');
+// Perform operations
+await mongoClient.close();
 ```
 
-#### Railway Deployment
-- Ensure MongoDB service is configured with replica set support
-- Most Railway MongoDB services are pre-configured
+### Performance Considerations
+- Each method creates and closes a new connection
+- For high-traffic scenarios, consider:
+  - Connection pooling
+  - Persistent connection strategies
+  - Caching connection instances
+
+### Security Notes
+- Always use secure, encrypted connection strings
+- Never hardcode database credentials
+- Use environment variables for sensitive information
 
 # MechHub API
 

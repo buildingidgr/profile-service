@@ -4,6 +4,8 @@ import authService from '../services/authService';
 import { createLogger } from '../utils/logger';
 import { prisma } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
+import { MongoClient, ObjectId } from 'mongodb';
+import { config } from '../config';
 
 // Extend Express Request type to include userId
 declare global {
@@ -19,9 +21,11 @@ const logger = createLogger('ProfileController');
 
 export class ProfileController {
   private profileService: ProfileService;
+  private mongoClient: MongoClient;
 
   constructor() {
     this.profileService = new ProfileService();
+    this.mongoClient = new MongoClient(config.databaseUrl);
   }
 
   async getProfile(req: Request, res: Response) {
@@ -181,8 +185,10 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Use direct MongoDB collection to avoid Prisma transactions
-      const professionalInfoCollection = (prisma.client as any)._runtimeModel.collections.ProfessionalInfo;
+      // Connect to MongoDB directly
+      await this.mongoClient.connect();
+      const database = this.mongoClient.db();
+      const professionalInfoCollection = database.collection('ProfessionalInfo');
       
       const professionalInfo = await professionalInfoCollection.findOne({ clerkId });
 
@@ -194,6 +200,8 @@ export class ProfileController {
     } catch (error) {
       logger.error('Error getting professional info:', error);
       return res.status(500).json({ error: 'Internal server error' });
+    } finally {
+      await this.mongoClient.close();
     }
   }
 
@@ -207,8 +215,10 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Use direct MongoDB collection to avoid Prisma transactions
-      const professionalInfoCollection = (prisma.client as any)._runtimeModel.collections.ProfessionalInfo;
+      // Connect to MongoDB directly
+      await this.mongoClient.connect();
+      const database = this.mongoClient.db();
+      const professionalInfoCollection = database.collection('ProfessionalInfo');
       
       const result = await professionalInfoCollection.findOneAndUpdate(
         { clerkId },
@@ -232,6 +242,8 @@ export class ProfileController {
     } catch (error) {
       logger.error('Error updating professional info:', error);
       return res.status(500).json({ error: 'Internal server error' });
+    } finally {
+      await this.mongoClient.close();
     }
   }
 
