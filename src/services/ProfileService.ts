@@ -253,7 +253,7 @@ export class ProfileService {
       }
 
       // Clear any cached data
-      await this.redisService.del(`profile:${clerkId}`);
+      await this.redisService.deleteApiKey(`profile:${clerkId}`);
 
       logger.info(`Profile and related data deleted for user: ${clerkId}`);
       return result.value;

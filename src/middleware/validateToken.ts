@@ -8,7 +8,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
-      user: jwt.JwtPayload;  // Make this required and consistent
+      user: any; // Make this consistent with other declarations
     }
   }
 }
