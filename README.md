@@ -108,12 +108,42 @@ docker run -p 3000:3000 profile-service
 - npm
 - OpenSSL
 
+### Type Definitions
+Comprehensive type definitions are crucial for TypeScript development:
+- `@types/node`: Node.js runtime types
+- `@types/express`: Express.js type definitions
+- `@types/express-rate-limit`: Rate limiting type support
+- `@types/cors`: CORS middleware types
+- `@types/jsonwebtoken`: JWT type definitions
+- `@types/mongodb`: MongoDB type support
+- `@types/nodemailer`: Email service types
+
 ### Installation
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Generate Prisma client: `npx prisma generate`
-4. Build the project: `npm run build`
-5. Start the server: `npm start`
+3. Install type definitions: `npm install --save-dev @types/node @types/express @types/express-rate-limit @types/cors @types/jsonwebtoken @types/mongodb @types/nodemailer`
+4. Generate Prisma client: `npx prisma generate`
+5. Build the project: `npm run build`
+6. Start the server: `npm start`
+
+### TypeScript Configuration
+Key TypeScript compiler options:
+- `strict`: Enables comprehensive type checking
+- `esModuleInterop`: Allows default imports from CommonJS modules
+- `skipLibCheck`: Skips type checking of declaration files
+- `typeRoots`: Specifies locations of type definition files
+
+### Troubleshooting Type Errors
+- Ensure all dependencies have corresponding `@types` packages
+- Check `tsconfig.json` for correct type configuration
+- Verify package.json dev dependencies
+- Restart TypeScript server in your IDE
+
+### Recommended Development Tools
+- Visual Studio Code
+- ESLint
+- Prettier
+- TypeScript Language Server
 
 ## Environment Variables
 - `DATABASE_URL`: MongoDB connection string

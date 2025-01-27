@@ -8,7 +8,18 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "types": ["node", "express", "jsonwebtoken", "nodemailer", "mongodb"]
+    "types": [
+      "node", 
+      "express", 
+      "express-rate-limit", 
+      "cors", 
+      "jsonwebtoken", 
+      "nodemailer", 
+      "mongodb"
+    ],
+    "typeRoots": [
+      "./node_modules/@types"
+    ]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]

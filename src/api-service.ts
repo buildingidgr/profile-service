@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express, { Request, Response, Application } from 'express';
 import cors from 'cors';
-import { rateLimit } from 'express-rate-limit';
+import { rateLimit, RateLimitRequestHandler } from 'express-rate-limit';
 import { createLogger } from './utils/logger';
 import { rabbitmq } from './utils/rabbitmq';
 import { config } from './config';
@@ -21,20 +21,20 @@ app.use(cors());
 app.use(express.json());
 
 // Rate limiting with more secure configuration
-const limiter = rateLimit({
+const limiter: RateLimitRequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skipFailedRequests: true, // Don't count failed requests
-  keyGenerator: (req) => {
+  keyGenerator: (req: Request): string => {
     // Use a combination of IP and user ID if authenticated
     const baseIP = req.ip;
-    const userId = req.user?.sub || req.userId;
+    const userId = (req as any).user?.sub || (req as any).userId;
     return userId ? `${baseIP}-${userId}` : baseIP;
   },
   validate: {
-    trustProxy: true,
+    trustProxy: 1,
     xForwardedForHeader: true
   }
 });
