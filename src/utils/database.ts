@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { createLogger } from './logger'
 import { config } from '../config'
-import { MongoClient, Document } from 'mongodb';
+import { MongoClient, Document, ObjectId } from 'mongodb';
 
 const logger = createLogger('database');
 
@@ -42,7 +42,7 @@ export async function connectToDatabase() {
 
 // Define an interface matching the Profile document structure
 interface ProfileDocument extends Document {
-  _id: any;
+  _id: ObjectId;
   clerkId: string;
   email?: string;
   emailVerified: boolean;
@@ -60,19 +60,13 @@ interface ProfileDocument extends Document {
 // Custom non-transactional update method with advanced error handling
 export async function safeProfileUpdate(clerkId: string, data: any) {
   try {
-    // Attempt Prisma update with minimal transaction requirements
-    const result = await prisma.$transaction(async (tx) => {
-      return tx.profile.update({
-        where: { clerkId },
-        data: {
-          ...data,
-          updatedAt: new Date()
-        }
-      });
-    }, {
-      // Minimal transaction configuration
-      maxWait: 1000,  // 1 second max wait
-      timeout: 5000   // 5 seconds total timeout
+    // Attempt direct Prisma update without transaction
+    const result = await prisma.profile.update({
+      where: { clerkId },
+      data: {
+        ...data,
+        updatedAt: new Date()
+      }
     });
 
     return result;
@@ -87,42 +81,41 @@ export async function safeProfileUpdate(clerkId: string, data: any) {
       try {
         // Fallback to direct MongoDB update
         const collection = mongoClient.db().collection('Profile');
-        const result = await collection.findOneAndUpdate(
+        const updateResult = await collection.updateOne(
           { clerkId },
           { 
             $set: { 
               ...data, 
               updatedAt: new Date() 
             }
-          },
-          { 
-            returnDocument: 'after',
-            upsert: false 
           }
         );
-        
-        // Transform MongoDB result to Prisma-like response
-        const doc = result as unknown as ProfileDocument;
-        if (doc) {
-          return {
-            id: doc._id.toString(),
-            clerkId: doc.clerkId,
-            email: doc.email || null,
-            emailVerified: doc.emailVerified,
-            phoneNumber: doc.phoneNumber || null,
-            phoneVerified: doc.phoneVerified,
-            username: doc.username || null,
-            firstName: doc.firstName || null,
-            lastName: doc.lastName || null,
-            avatarUrl: doc.avatarUrl || null,
-            apiKey: doc.apiKey || null,
-            createdAt: doc.createdAt,
-            updatedAt: doc.updatedAt,
-            externalAccounts: [] // Add if needed
-          };
+
+        // If update was successful, retrieve the updated document
+        if (updateResult.modifiedCount > 0) {
+          const doc = await collection.findOne({ clerkId }) as ProfileDocument;
+          
+          if (doc) {
+            return {
+              id: doc._id.toString(),
+              clerkId: doc.clerkId,
+              email: doc.email || null,
+              emailVerified: doc.emailVerified,
+              phoneNumber: doc.phoneNumber || null,
+              phoneVerified: doc.phoneVerified,
+              username: doc.username || null,
+              firstName: doc.firstName || null,
+              lastName: doc.lastName || null,
+              avatarUrl: doc.avatarUrl || null,
+              apiKey: doc.apiKey || null,
+              createdAt: doc.createdAt,
+              updatedAt: doc.updatedAt,
+              externalAccounts: [] // Add if needed
+            };
+          }
         }
         
-        throw new Error('No document found for update');
+        throw new Error('No document found or updated');
       } catch (mongoError) {
         logger.error('Fallback MongoDB update failed:', mongoError);
         throw mongoError;
