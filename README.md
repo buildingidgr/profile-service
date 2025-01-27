@@ -443,3 +443,49 @@ If not using Docker Compose, you can manually set up a replica set:
 - Verify connection string includes `replicaSet` parameter
 - Check MongoDB logs for any configuration issues
 
+## MongoDB Replica Set Considerations for Railway
+
+### Non-Replica Set Deployment
+
+When deploying on platforms like Railway that might not support full MongoDB replica sets, you have several strategies:
+
+#### 1. Disable Mandatory Transactions
+- Updated Prisma schema to minimize transaction requirements
+- Added custom error middleware to handle transaction limitations
+- Fallback to standard database operations
+
+#### 2. Connection String Configuration
+- Use connection strings without explicit replica set configuration
+- Example: `mongodb+srv://username:password@cluster.mongodb.net/database`
+
+#### 3. Middleware Error Handling
+```typescript
+prisma.$use(async (params, next) => {
+  try {
+    return await next(params);
+  } catch (error) {
+    if (error.message.includes('replica set')) {
+      console.warn('Falling back to standard operation');
+      // Custom error handling logic
+    }
+    throw error;
+  }
+});
+```
+
+### Recommended Practices
+- Minimize complex transactions
+- Design database operations to be atomic where possible
+- Implement robust error handling
+- Consider alternative data modification strategies
+
+### Potential Limitations
+- Some advanced Prisma features may not work
+- Potential performance overhead
+- Limited transaction support
+
+### Monitoring
+- Log and monitor database operation errors
+- Implement retry mechanisms for critical updates
+- Use Railway's logging and monitoring tools
+

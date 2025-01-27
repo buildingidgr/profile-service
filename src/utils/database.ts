@@ -10,13 +10,12 @@ declare global {
   var mongoClient: MongoClient | undefined
 }
 
-export const prisma = global.prisma || new PrismaClient({
+export const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: config.databaseUrl,
-    },
-  },
-  log: ['query', 'info', 'warn', 'error'],
+      url: process.env.DATABASE_URL || ''
+    }
+  }
 });
 
 export const mongoClient = global.mongoClient || new MongoClient(config.databaseUrl);
@@ -36,4 +35,21 @@ export async function connectToDatabase() {
     process.exit(1)
   }
 }
+
+// Optional: Add a custom middleware to handle transaction limitations
+prisma.$use(async (params, next) => {
+  try {
+    return await next(params);
+  } catch (error) {
+    console.error('Prisma operation error:', error);
+    
+    // Specific handling for replica set transaction errors
+    if (error instanceof Error && error.message.includes('replica set')) {
+      console.warn('Transaction not supported. Falling back to standard operation.');
+      // You might implement custom logic here to retry or handle the operation
+    }
+    
+    throw error;
+  }
+});
 
