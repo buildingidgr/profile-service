@@ -1,7 +1,7 @@
 import 'dotenv/config';
-import express, { Request, Response, Application } from 'express';
+import express from 'express';
 import cors from 'cors';
-import { rateLimit, RateLimitRequestHandler } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import { createLogger } from './utils/logger';
 import { rabbitmq } from './utils/rabbitmq';
 import { config } from './config';
@@ -10,18 +10,16 @@ import { validateToken } from './middleware/validateToken';
 import { errorHandler } from './middleware/errorHandler';
 import './consumers/opportunityConsumer';
 
-// Extend Request interface to include custom properties
-declare module 'express-serve-static-core' {
-  interface Request {
-    user?: {
-      sub?: string;
-    };
-    userId?: string;
-  }
+// Custom type augmentation
+interface CustomRequest extends express.Request {
+  user?: {
+    sub?: string;
+  };
+  userId?: string;
 }
 
 const logger = createLogger('api-service');
-const app: Application = express();
+const app = express();
 
 // Trust proxy configuration with additional security
 app.set('trust proxy', 1); // Only trust first proxy
@@ -31,28 +29,24 @@ app.use(cors());
 app.use(express.json());
 
 // Rate limiting with more secure configuration
-const limiter: RateLimitRequestHandler = rateLimit({
+const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skipFailedRequests: true, // Don't count failed requests
-  keyGenerator: (req): string => {
+  keyGenerator: (req: CustomRequest): string => {
     // Use a combination of IP and user ID if authenticated
-    const baseIP = req.ip;
-    const userId = req.user?.sub || req.userId;
+    const baseIP = req.ip || 'unknown';
+    const userId = req.user?.sub || req.userId || '';
     return userId ? `${baseIP}-${userId}` : baseIP;
-  },
-  validate: {
-    trustProxy: 1,
-    xForwardedForHeader: true
   }
 });
 
 app.use(limiter);
 
 // Health check
-app.get('/health', (_req: Request, res: Response) => {
+app.get('/health', (_req: CustomRequest, res: express.Response) => {
   res.json({ status: 'ok' });
 });
 
@@ -69,8 +63,8 @@ try {
   app.use(errorHandler);
 
   // Start server
-  const port = config.port || 3000;
-  app.listen(port, () => {
+  const port = config.port || '3000';
+  app.listen(parseInt(port, 10), () => {
     logger.info(`Server is running on port ${port}`);
   });
 } catch (error) {
