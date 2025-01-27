@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { Request } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { createLogger } from './utils/logger';
@@ -10,12 +10,14 @@ import { validateToken } from './middleware/validateToken';
 import { errorHandler } from './middleware/errorHandler';
 import './consumers/opportunityConsumer';
 
-// Custom type augmentation
-interface CustomRequest extends express.Request {
-  user?: {
-    sub?: string;
-  };
-  userId?: string;
+// Augment the Express Request interface
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+      user: any;
+    }
+  }
 }
 
 const logger = createLogger('api-service');
@@ -35,7 +37,7 @@ const limiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
   skipFailedRequests: true, // Don't count failed requests
-  keyGenerator: (req: CustomRequest): string => {
+  keyGenerator: (req: Request): string => {
     // Use a combination of IP and user ID if authenticated
     const baseIP = req.ip || 'unknown';
     const userId = req.user?.sub || req.userId || '';
@@ -46,7 +48,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Health check
-app.get('/health', (_req: CustomRequest, res: express.Response) => {
+app.get('/health', (_req: Request, res: express.Response) => {
   res.json({ status: 'ok' });
 });
 
@@ -63,8 +65,8 @@ try {
   app.use(errorHandler);
 
   // Start server
-  const port = config.port || '3000';
-  app.listen(parseInt(port, 10), () => {
+  const port = config.port || 3000;
+  app.listen(port, () => {
     logger.info(`Server is running on port ${port}`);
   });
 } catch (error) {
