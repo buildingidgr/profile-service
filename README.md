@@ -4,7 +4,7 @@
 - Unified authentication across all profile-related endpoints
 - Removed manual Clerk ID parameter requirements
 - Enhanced security by using authenticated user's ID for all operations
-- Improved error handling and authorization checks
+- Improved error handling and authorization checks for preferences endpoints
 - Updated Docker configuration to resolve OpenSSL dependencies
 
 ## API Endpoints
@@ -38,15 +38,16 @@
 
 - `GET /api/profiles/me/preferences`: Retrieve user preferences
   - Requires JWT authentication
-  - Uses authenticated user's Clerk ID
+  - Uses authenticated user's Clerk ID directly from token
   - Returns 401 if no user is authenticated
-  - Returns 404 if preferences not found
+  - Returns 404 if no preferences are found for the user
 
 - `PATCH /api/profiles/me/preferences`: Update user preferences
   - Requires JWT authentication
-  - Uses authenticated user's Clerk ID
+  - Uses authenticated user's Clerk ID directly from token
   - Creates preferences if they don't exist
   - Returns 401 if no user is authenticated
+  - Allows partial or full preference updates
 
 - `POST /api/profiles/me/api-key`: Generate a new API key
   - Requires JWT authentication
@@ -80,6 +81,8 @@ The token should contain a `sub` claim with the user's Clerk ID.
 - All profile-related operations are tied to the authenticated user's ID
 - Users can only access and modify their own profile information
 - Unauthorized access attempts return 401 or 403 status codes
+- Users can only access and modify their own preferences
+- Preference updates are scoped to the authenticated user
 
 ## Docker Setup
 

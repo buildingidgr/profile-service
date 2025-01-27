@@ -227,17 +227,19 @@ export class ProfileController {
 
   async getProfilePreferences(req: Request, res: Response) {
     try {
-      const requestingUserId = req.userId;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
 
-      if (!requestingUserId) {
+      if (!clerkId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const clerkId = requestingUserId.startsWith('user_') 
-        ? requestingUserId 
-        : `user_${requestingUserId}`;
-
       const preferences = await this.preferencesService.getPreferences(clerkId);
+      
+      if (!preferences) {
+        return res.status(404).json({ error: 'Preferences not found' });
+      }
+
       return res.json(preferences);
     } catch (error) {
       logger.error('Error getting profile preferences:', error);
@@ -247,15 +249,12 @@ export class ProfileController {
 
   async updateProfilePreferences(req: Request, res: Response) {
     try {
-      const requestingUserId = req.userId;
+      // Use the authenticated user's ID from the token
+      const clerkId = req.user?.sub || req.userId;
 
-      if (!requestingUserId) {
+      if (!clerkId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
-
-      const clerkId = requestingUserId.startsWith('user_') 
-        ? requestingUserId 
-        : `user_${requestingUserId}`;
 
       const preferences = await this.preferencesService.updatePreferences(clerkId, req.body);
       return res.json(preferences);
