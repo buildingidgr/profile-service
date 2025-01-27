@@ -241,22 +241,20 @@ class OpportunityConsumer {
           });
 
           const rawContent = msg.content.toString();
-          logger.debug('Raw message content:', rawContent);
+          // Log the exact raw message for debugging
+          logger.info('Raw message content:', rawContent);
 
           const queueMessage = JSON.parse(rawContent) as QueueMessage;
-          logger.info('Parsed queue message:', {
+          
+          // Log the complete parsed message structure
+          logger.info('Complete parsed message:', {
             eventType: queueMessage.eventType,
-            opportunityId: queueMessage.opportunity.id,
-            status: queueMessage.opportunity.status,
-            statusChange: {
-              from: queueMessage.opportunity.lastStatusChange.from,
-              to: queueMessage.opportunity.lastStatusChange.to,
-              changedBy: queueMessage.opportunity.lastStatusChange.changedBy,
-              changedAt: queueMessage.opportunity.lastStatusChange.changedAt
-            },
-            metadata: {
-              publishedAt: queueMessage.opportunity.metadata.publishedAt,
-              previousStatus: queueMessage.opportunity.metadata.previousStatus
+            opportunity: {
+              id: queueMessage.opportunity.id,
+              data: queueMessage.opportunity.data, // Log the complete data object
+              status: queueMessage.opportunity.status,
+              lastStatusChange: queueMessage.opportunity.lastStatusChange,
+              metadata: queueMessage.opportunity.metadata
             }
           });
 
@@ -268,12 +266,8 @@ class OpportunityConsumer {
             location: queueMessage.opportunity.data.location
           };
 
-          logger.info('Processing opportunity from queue message:', {
-            opportunityId: opportunity.id,
-            title: opportunity.title,
-            status: queueMessage.opportunity.status,
-            changedBy: queueMessage.opportunity.lastStatusChange.changedBy
-          });
+          // Log the transformed opportunity object
+          logger.info('Transformed opportunity object:', opportunity);
 
           await this.handleOpportunity(opportunity);
           
