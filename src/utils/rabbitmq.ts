@@ -4,7 +4,7 @@ import { createLogger } from './logger';
 
 const logger = createLogger('rabbitmq');
 
-class RabbitMQConnection {
+export class RabbitMQConnection {
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
   private reconnectTimeout: NodeJS.Timeout | null = null;
@@ -50,9 +50,10 @@ class RabbitMQConnection {
       this.isConnecting = false;
       logger.info('RabbitMQ connection established and ready to consume messages');
     } catch (error) {
-      logger.error('Error connecting to RabbitMQ:', error);
+      logger.error('Failed to connect to RabbitMQ:', error);
       this.isConnecting = false;
       this.scheduleReconnect();
+      throw error;
     }
   }
 
@@ -63,8 +64,17 @@ class RabbitMQConnection {
 
     this.reconnectTimeout = setTimeout(() => {
       logger.info('Attempting to reconnect to RabbitMQ...');
-      this.connect();
+      this.connect().catch((err) => {
+        logger.error('Failed to reconnect:', err);
+      });
     }, 5000);
+  }
+
+  async getChannel(): Promise<amqp.Channel> {
+    if (!this.channel) {
+      throw new Error('RabbitMQ channel not initialized');
+    }
+    return this.channel;
   }
 
   async consumeMessages(queue: string, callback: (message: any) => Promise<void>) {
@@ -98,16 +108,20 @@ class RabbitMQConnection {
   }
 
   async close() {
-    try {
-      if (this.reconnectTimeout) {
-        clearTimeout(this.reconnectTimeout);
-      }
-      await this.channel?.close();
-      await this.connection?.close();
-      logger.info('Closed RabbitMQ connection');
-    } catch (error) {
-      logger.error('Error closing RabbitMQ connection:', error);
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
     }
+
+    if (this.channel) {
+      await this.channel.close();
+    }
+
+    if (this.connection) {
+      await this.connection.close();
+    }
+
+    this.channel = null;
+    this.connection = null;
   }
 
   async checkHealth(): Promise<boolean> {
