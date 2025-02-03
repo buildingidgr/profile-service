@@ -5,6 +5,37 @@ import { MongoClient, Document, ObjectId } from 'mongodb';
 
 const logger = createLogger('database');
 
+// Deep merge utility function
+function deepMerge(target: any, source: any): any {
+  if (typeof source !== 'object' || source === null) {
+    return source;
+  }
+
+  if (typeof target !== 'object' || target === null) {
+    return deepMergeObjects({}, source);
+  }
+
+  return deepMergeObjects(target, source);
+}
+
+function deepMergeObjects(target: any, source: any): any {
+  const result = { ...target };
+
+  Object.keys(source).forEach(key => {
+    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+      if (target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
+        result[key] = deepMergeObjects(target[key], source[key]);
+      } else {
+        result[key] = deepMergeObjects({}, source[key]);
+      }
+    } else {
+      result[key] = source[key];
+    }
+  });
+
+  return result;
+}
+
 declare global {
   var prisma: PrismaClient | undefined
   var mongoClient: MongoClient | undefined
@@ -204,12 +235,9 @@ export async function safeUpdatePreferences(clerkId: string, preferencesData: Pr
     // Get current document first
     const currentDoc = await collection.findOne({ clerkId }) as PreferencesDocument | null;
     
-    // Ensure preferences is an object before spreading
-    const existingPreferences = currentDoc?.preferences as Prisma.JsonObject | undefined;
-    
-    // Merge new preferences with existing ones if they exist
-    const mergedPreferences = existingPreferences && typeof preferencesData === 'object'
-      ? { ...existingPreferences, ...(preferencesData as Prisma.JsonObject) }
+    // Deep merge the preferences
+    const mergedPreferences = currentDoc
+      ? deepMerge(currentDoc.preferences, preferencesData)
       : preferencesData;
 
     // Perform upsert operation directly in MongoDB
