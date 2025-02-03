@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import { createLogger } from './logger'
 import { config } from '../config'
 import { MongoClient, Document, ObjectId } from 'mongodb';
@@ -60,7 +60,7 @@ interface ProfileDocument extends Document {
 interface PreferencesDocument extends Document {
   _id: ObjectId;
   clerkId: string;
-  preferences: any;
+  preferences: Prisma.InputJsonValue;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,11 +68,28 @@ interface PreferencesDocument extends Document {
 // Custom non-transactional update method with advanced error handling
 export async function safeProfileUpdate(clerkId: string, data: any) {
   try {
+    // Get the current profile first
+    const currentProfile = await prisma.profile.findUnique({
+      where: { clerkId }
+    });
+
+    if (!currentProfile) {
+      throw new Error('Profile not found');
+    }
+
+    // Only update fields that are provided in the data object
+    const updateData = Object.keys(data).reduce((acc: any, key) => {
+      if (data[key] !== undefined) {
+        acc[key] = data[key];
+      }
+      return acc;
+    }, {});
+
     // Attempt direct Prisma update without transaction
     const result = await prisma.profile.update({
       where: { clerkId },
       data: {
-        ...data,
+        ...updateData,
         updatedAt: new Date()
       }
     });
@@ -89,11 +106,20 @@ export async function safeProfileUpdate(clerkId: string, data: any) {
       try {
         // Fallback to direct MongoDB update
         const collection = mongoClient.db().collection('Profile');
+        
+        // Only update fields that are provided in the data object
+        const updateData = Object.keys(data).reduce((acc: any, key) => {
+          if (data[key] !== undefined) {
+            acc[key] = data[key];
+          }
+          return acc;
+        }, {});
+
         const updateResult = await collection.updateOne(
           { clerkId },
           { 
             $set: { 
-              ...data, 
+              ...updateData, 
               updatedAt: new Date() 
             }
           }
@@ -170,13 +196,26 @@ export async function safeGetPreferences(clerkId: string) {
 }
 
 // Method to safely update user preferences
-export async function safeUpdatePreferences(clerkId: string, preferencesData: any) {
+export async function safeUpdatePreferences(clerkId: string, preferencesData: Prisma.InputJsonValue) {
   try {
     // Try Prisma update first
     try {
+      // Get current preferences first
+      const currentPreferences = await prisma.userPreferences.findUnique({
+        where: { clerkId }
+      });
+
+      // Ensure preferences is an object before spreading
+      const existingPreferences = currentPreferences?.preferences as Prisma.JsonObject | undefined;
+      
+      // Merge new preferences with existing ones if they exist
+      const mergedPreferences = existingPreferences && typeof preferencesData === 'object'
+        ? { ...existingPreferences, ...(preferencesData as Prisma.JsonObject) }
+        : preferencesData;
+
       const preferences = await prisma.userPreferences.upsert({
         where: { clerkId },
-        update: { preferences: preferencesData },
+        update: { preferences: mergedPreferences },
         create: {
           clerkId,
           preferences: preferencesData,
@@ -192,12 +231,23 @@ export async function safeUpdatePreferences(clerkId: string, preferencesData: an
         
         const collection = mongoClient.db().collection('UserPreferences');
         
+        // Get current document first
+        const currentDoc = await collection.findOne({ clerkId }) as PreferencesDocument | null;
+        
+        // Ensure preferences is an object before spreading
+        const existingPreferences = currentDoc?.preferences as Prisma.JsonObject | undefined;
+        
+        // Merge new preferences with existing ones if they exist
+        const mergedPreferences = existingPreferences && typeof preferencesData === 'object'
+          ? { ...existingPreferences, ...(preferencesData as Prisma.JsonObject) }
+          : preferencesData;
+
         // Perform upsert operation directly in MongoDB
         await collection.updateOne(
           { clerkId },
           { 
             $set: { 
-              preferences: preferencesData,
+              preferences: mergedPreferences,
               updatedAt: new Date() 
             },
             $setOnInsert: { 
