@@ -7,7 +7,7 @@ const profileController = new ProfileController();
 profileRoutes.get('/', profileController.getProfile);
 profileRoutes.get('/me', profileController.getProfile);
 profileRoutes.patch('/me', profileController.updateProfile);
-profileRoutes.get('/me/preferences', profileController.getProfilePreferences);
+profileRoutes.get('/me/preferences', profileController.getPreferences);
 profileRoutes.patch('/me/preferences', profileController.updateProfilePreferences);
 profileRoutes.post('/me/api-key', profileController.generateApiKey);
 profileRoutes.get('/me/professional', profileController.getProfessionalInfo);
