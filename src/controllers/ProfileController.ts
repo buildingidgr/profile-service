@@ -320,10 +320,31 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Use the new safeUpdatePreferences method
-      const preferences = await safeUpdatePreferences(clerkId, req.body);
+      // Validate request body
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ 
+          error: 'Invalid request body. Expected a JSON object with preferences.' 
+        });
+      }
 
-      return res.json(preferences);
+      // Ensure the body is a valid JSON object
+      try {
+        // If body is already parsed as JSON, this will work
+        // If it's a string, this will parse it
+        const preferencesData = typeof req.body === 'string' 
+          ? JSON.parse(req.body) 
+          : req.body;
+
+        // Use the new safeUpdatePreferences method
+        const preferences = await safeUpdatePreferences(clerkId, preferencesData);
+
+        return res.json(preferences);
+      } catch (parseError: any) {
+        return res.status(400).json({ 
+          error: 'Invalid JSON format in request body.',
+          details: parseError.message 
+        });
+      }
     } catch (error) {
       logger.error('Error updating profile preferences:', error);
       return res.status(500).json({ error: 'Internal server error' });

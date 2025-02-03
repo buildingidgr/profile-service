@@ -198,86 +198,51 @@ export async function safeGetPreferences(clerkId: string) {
 // Method to safely update user preferences
 export async function safeUpdatePreferences(clerkId: string, preferencesData: Prisma.InputJsonValue) {
   try {
-    // Try Prisma update first
-    try {
-      // Get current preferences first
-      const currentPreferences = await prisma.userPreferences.findUnique({
-        where: { clerkId }
-      });
+    // Skip Prisma entirely and use MongoDB directly since we don't want to deal with transactions
+    const collection = mongoClient.db().collection('UserPreferences');
+    
+    // Get current document first
+    const currentDoc = await collection.findOne({ clerkId }) as PreferencesDocument | null;
+    
+    // Ensure preferences is an object before spreading
+    const existingPreferences = currentDoc?.preferences as Prisma.JsonObject | undefined;
+    
+    // Merge new preferences with existing ones if they exist
+    const mergedPreferences = existingPreferences && typeof preferencesData === 'object'
+      ? { ...existingPreferences, ...(preferencesData as Prisma.JsonObject) }
+      : preferencesData;
 
-      // Ensure preferences is an object before spreading
-      const existingPreferences = currentPreferences?.preferences as Prisma.JsonObject | undefined;
-      
-      // Merge new preferences with existing ones if they exist
-      const mergedPreferences = existingPreferences && typeof preferencesData === 'object'
-        ? { ...existingPreferences, ...(preferencesData as Prisma.JsonObject) }
-        : preferencesData;
-
-      const preferences = await prisma.userPreferences.upsert({
-        where: { clerkId },
-        update: { preferences: mergedPreferences },
-        create: {
-          clerkId,
-          preferences: preferencesData,
+    // Perform upsert operation directly in MongoDB
+    await collection.updateOne(
+      { clerkId },
+      { 
+        $set: { 
+          preferences: mergedPreferences,
+          updatedAt: new Date() 
         },
-      });
-
-      return preferences;
-    } catch (prismaError: any) {
-      // If Prisma fails due to replica set, fall back to MongoDB
-      if (prismaError.message?.includes('replica set') || 
-          prismaError.message?.includes('transaction')) {
-        logger.warn('Prisma update failed. Falling back to direct MongoDB update.');
-        
-        const collection = mongoClient.db().collection('UserPreferences');
-        
-        // Get current document first
-        const currentDoc = await collection.findOne({ clerkId }) as PreferencesDocument | null;
-        
-        // Ensure preferences is an object before spreading
-        const existingPreferences = currentDoc?.preferences as Prisma.JsonObject | undefined;
-        
-        // Merge new preferences with existing ones if they exist
-        const mergedPreferences = existingPreferences && typeof preferencesData === 'object'
-          ? { ...existingPreferences, ...(preferencesData as Prisma.JsonObject) }
-          : preferencesData;
-
-        // Perform upsert operation directly in MongoDB
-        await collection.updateOne(
-          { clerkId },
-          { 
-            $set: { 
-              preferences: mergedPreferences,
-              updatedAt: new Date() 
-            },
-            $setOnInsert: { 
-              clerkId,
-              createdAt: new Date() 
-            }
-          },
-          { upsert: true }
-        );
-
-        // Retrieve the updated document
-        const updatedDoc = await collection.findOne({ clerkId }) as PreferencesDocument;
-
-        if (updatedDoc) {
-          // Transform MongoDB result to match Prisma structure
-          return {
-            id: updatedDoc._id.toString(),
-            clerkId: updatedDoc.clerkId,
-            preferences: updatedDoc.preferences,
-            createdAt: updatedDoc.createdAt,
-            updatedAt: updatedDoc.updatedAt
-          };
+        $setOnInsert: { 
+          clerkId,
+          createdAt: new Date() 
         }
+      },
+      { upsert: true }
+    );
 
-        throw new Error('Failed to update preferences');
-      }
+    // Retrieve the updated document
+    const updatedDoc = await collection.findOne({ clerkId }) as PreferencesDocument;
 
-      // Re-throw other Prisma errors
-      throw prismaError;
+    if (updatedDoc) {
+      // Transform MongoDB result to match Prisma structure
+      return {
+        id: updatedDoc._id.toString(),
+        clerkId: updatedDoc.clerkId,
+        preferences: updatedDoc.preferences,
+        createdAt: updatedDoc.createdAt,
+        updatedAt: updatedDoc.updatedAt
+      };
     }
+
+    throw new Error('Failed to update preferences');
   } catch (error) {
     logger.error('Error updating preferences:', error);
     throw error;
