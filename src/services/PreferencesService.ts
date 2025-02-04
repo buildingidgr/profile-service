@@ -1,46 +1,53 @@
 import { MongoClient } from 'mongodb';
 import { createLogger } from '../utils/logger';
 import { BadRequestError } from '../utils/errors';
+import { ObjectId } from 'mongodb';
 
 const logger = createLogger('PreferencesService');
 const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
 const db = mongoClient.db();
 
 export interface UserPreferences {
-  dashboard: {
-    timezone: string;
-    language: string;
-  };
-  notifications: {
-    email: {
-      marketing: boolean;
-      updates: boolean;
-      security: boolean;
-      newsletters: boolean;
-      productAnnouncements: boolean;
+  id: string;
+  clerkId: string;
+  preferences: {
+    notifications: {
+      email: {
+        updates: boolean;
+        marketing: boolean;
+        security: boolean;
+        newsletters: boolean;
+      };
+    };
+    dashboard: {
+      language: string;
+      timezone: string;
+    };
+    display: {
+      theme: 'light' | 'dark';
     };
   };
-  display: {
-    theme: 'light' | 'dark' | 'system';
-  };
+  createdAt: string;
+  updatedAt: string;
 }
 
-const DEFAULT_PREFERENCES: UserPreferences = {
-  dashboard: {
-    timezone: "Europe/Athens",
-    language: "el-GR"
-  },
-  notifications: {
-    email: {
-      marketing: false,
-      updates: false,
-      security: true,
-      newsletters: false,
-      productAnnouncements: false
+const DEFAULT_PREFERENCES: Partial<UserPreferences> = {
+  preferences: {
+    notifications: {
+      email: {
+        updates: false,
+        marketing: false,
+        security: false,
+        newsletters: true
+      }
+    },
+    dashboard: {
+      language: "en-US",
+      timezone: "Pacific/Pago_Pago"
+    },
+    display: {
+      theme: "light"
     }
-  },
-  display: {
-    theme: "light"
   }
 };
 
@@ -52,34 +59,42 @@ export class PreferencesService {
 
       if (!preferences) {
         // If no preferences exist, create default ones
-        await this.createDefaultPreferences(clerkId);
-        return DEFAULT_PREFERENCES;
+        const newPreferences = await this.createDefaultPreferences(clerkId);
+        return newPreferences;
       }
 
-      return preferences.preferences;
+      return {
+        id: preferences._id.toString(),
+        clerkId: preferences.clerkId,
+        preferences: preferences.preferences,
+        createdAt: preferences.createdAt,
+        updatedAt: preferences.updatedAt
+      } as UserPreferences;
     } catch (error) {
       logger.error('Error getting preferences', { error, clerkId });
       throw new BadRequestError('Failed to get preferences');
     }
   }
 
-  async updatePreferences(clerkId: string, data: Partial<UserPreferences>): Promise<UserPreferences> {
+  async updatePreferences(clerkId: string, data: Partial<UserPreferences['preferences']>): Promise<UserPreferences> {
     try {
       const preferencesCollection = db.collection('UserPreferences');
       const currentPrefs = await preferencesCollection.findOne({ clerkId });
 
       const updatedPreferences = {
-        ...DEFAULT_PREFERENCES,
-        ...(currentPrefs?.preferences || {}),
-        ...data
+        preferences: {
+          ...DEFAULT_PREFERENCES.preferences,
+          ...(currentPrefs?.preferences || {}),
+          ...data
+        }
       };
 
       const result = await preferencesCollection.findOneAndUpdate(
         { clerkId },
         { 
           $set: { 
-            preferences: updatedPreferences,
-            updatedAt: new Date()
+            ...updatedPreferences,
+            updatedAt: new Date().toISOString()
           }
         },
         { 
@@ -92,20 +107,40 @@ export class PreferencesService {
         throw new BadRequestError('Failed to update preferences');
       }
 
-      return result.value.preferences;
+      return {
+        id: result.value._id.toString(),
+        clerkId: result.value.clerkId,
+        preferences: result.value.preferences,
+        createdAt: result.value.createdAt,
+        updatedAt: result.value.updatedAt
+      } as UserPreferences;
     } catch (error) {
       logger.error('Error updating preferences', { error, clerkId });
       throw new BadRequestError('Failed to update preferences');
     }
   }
 
-  public async createDefaultPreferences(clerkId: string): Promise<void> {
+  public async createDefaultPreferences(clerkId: string): Promise<UserPreferences> {
     const preferencesCollection = db.collection('UserPreferences');
-    await preferencesCollection.insertOne({
+    const now = new Date().toISOString();
+    const id = new ObjectId().toString();
+    
+    const newPreferences = {
+      _id: new ObjectId(id),
+      id,
       clerkId,
-      preferences: DEFAULT_PREFERENCES,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
+      ...DEFAULT_PREFERENCES,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    await preferencesCollection.insertOne(newPreferences);
+    return {
+      id,
+      clerkId,
+      preferences: DEFAULT_PREFERENCES.preferences,
+      createdAt: now,
+      updatedAt: now
+    } as UserPreferences;
   }
 } 

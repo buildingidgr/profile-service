@@ -7,6 +7,7 @@ import { BadRequestError } from '../utils/errors';
 import { MongoClient, ObjectId } from 'mongodb';
 import { config } from '../config';
 import { safeProfileUpdate } from '../utils/database';
+import { PreferencesService } from '../services/PreferencesService';
 
 // Extend Express Request type to include userId
 declare global {
@@ -141,21 +142,19 @@ export class ProfileController {
 
   async getPreferences(req: Request, res: Response) {
     try {
-      // Use the authenticated user's ID from the token
       const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Use the new safeGetPreferences method
-      const preferences = await safeGetPreferences(clerkId);
+      const preferencesService = new PreferencesService();
+      const preferences = await preferencesService.getPreferences(clerkId);
 
       return res.json(preferences);
     } catch (error) {
       logger.error('Error getting preferences:', error);
       
-      // Check if preferences not found
       if (error instanceof Error && error.message === 'Preferences not found') {
         return res.status(404).json({ error: 'Preferences not found' });
       }
@@ -166,7 +165,6 @@ export class ProfileController {
 
   async updateProfilePreferences(req: Request, res: Response) {
     try {
-      // Use the authenticated user's ID from the token
       const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
@@ -182,14 +180,12 @@ export class ProfileController {
 
       // Ensure the body is a valid JSON object
       try {
-        // If body is already parsed as JSON, this will work
-        // If it's a string, this will parse it
         const preferencesData = typeof req.body === 'string' 
           ? JSON.parse(req.body) 
           : req.body;
 
-        // Use the new safeUpdatePreferences method
-        const preferences = await safeUpdatePreferences(clerkId, preferencesData);
+        const preferencesService = new PreferencesService();
+        const preferences = await preferencesService.updatePreferences(clerkId, preferencesData);
 
         return res.json(preferences);
       } catch (parseError: any) {

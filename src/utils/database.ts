@@ -88,14 +88,6 @@ interface ProfileDocument extends Document {
   updatedAt: Date;
 }
 
-interface PreferencesDocument extends Document {
-  _id: ObjectId;
-  clerkId: string;
-  preferences: Prisma.InputJsonValue;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 // Custom non-transactional update method with advanced error handling
 export async function safeProfileUpdate(clerkId: string, data: any) {
   try {
@@ -188,91 +180,6 @@ export async function safeProfileUpdate(clerkId: string, data: any) {
     }
     
     // Re-throw other types of errors
-    throw error;
-  }
-}
-
-// Method to retrieve user preferences with consistent return structure
-export async function safeGetPreferences(clerkId: string) {
-  try {
-    // Try Prisma first
-    const preferences = await prisma.userPreferences.findUnique({
-      where: { clerkId }
-    });
-
-    if (preferences) {
-      return preferences;
-    }
-
-    // Fallback to direct MongoDB retrieval
-    const collection = mongoClient.db().collection('UserPreferences');
-    const doc = await collection.findOne({ clerkId }) as PreferencesDocument;
-
-    if (doc) {
-      return {
-        id: doc._id.toString(),
-        clerkId: doc.clerkId,
-        preferences: doc.preferences,
-        createdAt: doc.createdAt,
-        updatedAt: doc.updatedAt
-      };
-    }
-
-    // If no preferences found
-    throw new Error('Preferences not found');
-  } catch (error) {
-    logger.error('Error retrieving preferences:', error);
-    throw error;
-  }
-}
-
-// Method to safely update user preferences
-export async function safeUpdatePreferences(clerkId: string, preferencesData: Prisma.InputJsonValue) {
-  try {
-    // Skip Prisma entirely and use MongoDB directly since we don't want to deal with transactions
-    const collection = mongoClient.db().collection('UserPreferences');
-    
-    // Get current document first
-    const currentDoc = await collection.findOne({ clerkId }) as PreferencesDocument | null;
-    
-    // Deep merge the preferences
-    const mergedPreferences = currentDoc
-      ? deepMerge(currentDoc.preferences, preferencesData)
-      : preferencesData;
-
-    // Perform upsert operation directly in MongoDB
-    await collection.updateOne(
-      { clerkId },
-      { 
-        $set: { 
-          preferences: mergedPreferences,
-          updatedAt: new Date() 
-        },
-        $setOnInsert: { 
-          clerkId,
-          createdAt: new Date() 
-        }
-      },
-      { upsert: true }
-    );
-
-    // Retrieve the updated document
-    const updatedDoc = await collection.findOne({ clerkId }) as PreferencesDocument;
-
-    if (updatedDoc) {
-      // Transform MongoDB result to match Prisma structure
-      return {
-        id: updatedDoc._id.toString(),
-        clerkId: updatedDoc.clerkId,
-        preferences: updatedDoc.preferences,
-        createdAt: updatedDoc.createdAt,
-        updatedAt: updatedDoc.updatedAt
-      };
-    }
-
-    throw new Error('Failed to update preferences');
-  } catch (error) {
-    logger.error('Error updating preferences:', error);
     throw error;
   }
 }
