@@ -5,8 +5,9 @@ import { createLogger } from './logger';
 const logger = createLogger('rabbitmq');
 
 const RECONNECT_TIMEOUT = 5000;
-const HEARTBEAT_INTERVAL = 30;
-const CONNECTION_TIMEOUT = 10000;
+const HEARTBEAT_INTERVAL = 60;
+const CONNECTION_TIMEOUT = 30000;
+const SOCKET_TIMEOUT = 45000;
 
 export class RabbitMQConnection {
   private connection: amqp.Connection | null = null;
@@ -15,6 +16,7 @@ export class RabbitMQConnection {
   private isConnecting: boolean = false;
   private connectionAttempts: number = 0;
   private readonly maxConnectionAttempts: number = 10;
+  private heartbeatTimer: NodeJS.Timeout | null = null;
 
   async connect() {
     if (this.isConnecting) {
@@ -31,11 +33,12 @@ export class RabbitMQConnection {
         maxAttempts: this.maxConnectionAttempts
       });
 
-      // Socket options for better connection stability
+      // Enhanced socket options for better connection stability
       const socketOptions = {
         keepAlive: true,
         keepAliveDelay: 15000, // 15 seconds
-        timeout: CONNECTION_TIMEOUT
+        timeout: SOCKET_TIMEOUT,
+        noDelay: true // Disable Nagle's algorithm
       };
 
       this.connection = await amqp.connect(config.rabbitmqUrl || '', {
@@ -63,25 +66,8 @@ export class RabbitMQConnection {
         throw queueError;
       }
 
-      this.connection.on('error', (err) => {
-        logger.error('RabbitMQ connection error:', { error: err, stack: err.stack });
-        this.handleConnectionFailure();
-      });
-
-      this.connection.on('close', () => {
-        logger.warn('RabbitMQ connection closed');
-        this.handleConnectionFailure();
-      });
-
-      this.channel.on('error', (err) => {
-        logger.error('RabbitMQ channel error:', { error: err, stack: err.stack });
-        this.handleChannelFailure();
-      });
-
-      this.channel.on('close', () => {
-        logger.warn('RabbitMQ channel closed');
-        this.handleChannelFailure();
-      });
+      // Setup connection monitoring
+      this.setupConnectionMonitoring();
 
       // Set channel prefetch for better load handling
       await this.channel.prefetch(1);
@@ -98,8 +84,57 @@ export class RabbitMQConnection {
     }
   }
 
+  private setupConnectionMonitoring() {
+    if (!this.connection || !this.channel) return;
+
+    // Clear any existing timers
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+    }
+
+    // Setup connection event handlers
+    this.connection.on('error', (err) => {
+      logger.error('RabbitMQ connection error:', { error: err, stack: err.stack });
+      this.handleConnectionFailure();
+    });
+
+    this.connection.on('close', () => {
+      logger.warn('RabbitMQ connection closed');
+      this.handleConnectionFailure();
+    });
+
+    this.channel.on('error', (err) => {
+      logger.error('RabbitMQ channel error:', { error: err, stack: err.stack });
+      this.handleChannelFailure();
+    });
+
+    this.channel.on('close', () => {
+      logger.warn('RabbitMQ channel closed');
+      this.handleChannelFailure();
+    });
+
+    // Setup heartbeat monitoring
+    this.heartbeatTimer = setInterval(async () => {
+      try {
+        if (this.channel) {
+          // Perform a lightweight operation to check connection
+          await this.channel.checkQueue('webhook-events');
+        }
+      } catch (error) {
+        logger.error('Heartbeat check failed:', error);
+        this.handleConnectionFailure();
+      }
+    }, (HEARTBEAT_INTERVAL * 1000) / 2); // Check twice as often as the heartbeat interval
+  }
+
   private handleConnectionFailure() {
     this.isConnecting = false;
+    
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+
     this.channel = null;
     this.connection = null;
 
@@ -109,7 +144,13 @@ export class RabbitMQConnection {
       logger.error('Max reconnection attempts reached. Manual intervention required.', {
         attempts: this.connectionAttempts
       });
-      // Here you might want to notify your monitoring system
+      // Reset connection attempts after a longer delay
+      setTimeout(() => {
+        this.connectionAttempts = 0;
+        this.connect().catch(err => {
+          logger.error('Failed to reconnect after reset:', err);
+        });
+      }, 60000); // Wait 1 minute before resetting
     }
   }
 
@@ -233,6 +274,11 @@ export class RabbitMQConnection {
   }
 
   async close() {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
