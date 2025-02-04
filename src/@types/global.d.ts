@@ -137,12 +137,4 @@ declare module './database.js' { export * from '@utils/database'; }
 declare module './errors.js' { export * from '@utils/errors'; }
 declare module './config.js' { export * from '@shared/config'; }
 declare module './PreferencesService.js' { export * from '@services/PreferencesService'; }
-declare module './RegistrationService.js' { export * from '@services/RegistrationService'; }
-
-// Additional declarations for consumer paths
-declare module '../../utils/logger' { export * from '@utils/logger'; }
-declare module '../../utils/database' { export * from '@utils/database'; }
-declare module '../../utils/errors' { export * from '@utils/errors'; }
-declare module '../../config' { export * from '@shared/config'; }
-declare module '../../services/PreferencesService' { export * from '@services/PreferencesService'; }
-declare module '../../services/RegistrationService' { export * from '@services/RegistrationService'; } 
+declare module './RegistrationService.js' { export * from '@services/RegistrationService'; } 

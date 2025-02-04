@@ -26,14 +26,12 @@
     "paths": {
       "@/*": ["*"],
       "@api/*": ["api/*"],
-      "@consumer/*": ["consumer/*"],
       "@shared/*": ["shared/*"],
       "@config/*": ["config/*"],
       "@utils/*": ["utils/*"],
       "@services/*": ["services/*"],
       "../*": ["*"],
-      "./*": ["*"],
-      "*": ["*", "../node_modules/*"]
+      "./*": ["*"]
     },
     "typeRoots": [
       "./node_modules/@types",

@@ -7,7 +7,6 @@
   "_moduleAliases": {
     "@": "src",
     "@api": "src/api",
-    "@consumer": "src/consumer",
     "@shared": "src/shared",
     "@config": "src/config",
     "@utils": "src/utils",
@@ -17,27 +16,19 @@
     "clean": "rimraf dist",
     "build": "tsc",
     "start": "node -r module-alias/register dist/api-service.js",
-    "start:api": "node -r module-alias/register dist/api-service.js",
-    "start:consumer": "node -r module-alias/register dist/consumer/consumer-service.js",
     "dev": "nodemon -r module-alias/register src/api-service.ts",
-    "dev:consumer": "nodemon -r module-alias/register src/consumer/consumer-service.ts",
-    "dev:api": "nodemon -r module-alias/register src/api-service.ts",
     "test": "jest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:db:push": "prisma db push",
-    "prisma:studio": "prisma studio",
-    "railway:up": "railway up",
-    "railway:run": "railway run npm start",
-    "generate-lockfile": "npm install --package-lock-only"
+    "prisma:studio": "prisma studio"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "dependencies": {
     "@prisma/client": "4.16.2",
-    "amqplib": "0.10.3",
     "axios": "1.6.0",
     "cors": "2.8.5",
     "dotenv": "16.0.3",
@@ -46,13 +37,11 @@
     "jsonwebtoken": "9.0.0",
     "module-alias": "^2.2.3",
     "mongodb": "4.14.0",
-    "nodemailer": "6.9.3",
     "prisma": "4.16.2",
     "redis": "4.6.6",
     "winston": "3.8.2"
   },
   "devDependencies": {
-    "@types/amqplib": "0.10.1",
     "@types/cors": "2.8.13",
     "@types/express": "4.17.17",
     "@types/express-serve-static-core": "4.17.33",
@@ -60,10 +49,8 @@
     "@types/jsonwebtoken": "9.0.2",
     "@types/mongodb": "4.0.7",
     "@types/node": "20.3.1",
-    "@types/nodemailer": "6.4.8",
     "@typescript-eslint/eslint-plugin": "^5.60.0",
     "@typescript-eslint/parser": "^5.60.0",
-    "concurrently": "8.2.0",
     "eslint": "^8.43.0",
     "jest": "^29.5.0",
     "nodemon": "2.0.22",
