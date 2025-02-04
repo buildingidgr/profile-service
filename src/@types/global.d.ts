@@ -47,14 +47,17 @@ declare module 'express-rate-limit' {
   interface Options {
     windowMs?: number;
     max?: number;
-    message?: string;
+    message?: string | object;
     statusCode?: number;
-    headers?: boolean;
+    legacyHeaders?: boolean;
+    standardHeaders?: boolean;
+    requestPropertyName?: string;
     skipFailedRequests?: boolean;
     skipSuccessfulRequests?: boolean;
-    requestWasSuccessful?: (req: Request, res: Response) => boolean;
-    skip?: (req: Request, res: Response) => boolean;
+    keyGenerator?: (req: Request) => string;
     handler?: (req: Request, res: Response, next: NextFunction) => void;
+    skip?: (req: Request, res: Response) => boolean;
+    requestWasSuccessful?: (req: Request, res: Response) => boolean;
     onLimitReached?: (req: Request, res: Response, optionsUsed: Options) => void;
   }
 
