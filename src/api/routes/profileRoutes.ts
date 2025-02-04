@@ -16,6 +16,4 @@ profileRoutes.patch('/me', validateToken, profileController.updateProfile);
 profileRoutes.get('/me/preferences', validateToken, profileController.getPreferences);
 profileRoutes.patch('/me/preferences', validateToken, profileController.updateProfilePreferences);
 profileRoutes.post('/me/api-key', validateToken, profileController.generateApiKey);
-profileRoutes.get('/me/professional', validateToken, profileController.getProfessionalInfo);
-profileRoutes.patch('/me/professional', validateToken, profileController.updateProfessionalInfo);
 
