@@ -19,7 +19,7 @@ export const prisma = new PrismaClient({
 let mongoClient: MongoClient;
 
 if (!global.mongoClient) {
-  mongoClient = new MongoClient(config.mongodb.uri);
+  mongoClient = new MongoClient(config.databaseUrl);
   global.mongoClient = mongoClient;
 } else {
   mongoClient = global.mongoClient;

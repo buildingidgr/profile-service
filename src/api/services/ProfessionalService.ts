@@ -4,6 +4,7 @@ import { BadRequestError } from '../../shared/utils/errors';
 import { Professional } from '../models/Professional';
 import { logger } from '../../shared/utils/logger';
 import { NotFoundError } from '../../shared/utils/errors';
+import { PrismaClient } from '@prisma/client';
 
 const logger = createLogger('ProfessionalService');
 const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
