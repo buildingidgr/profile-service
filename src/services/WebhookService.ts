@@ -7,45 +7,50 @@ const logger = createLogger('WebhookService');
 interface WebhookEvent {
   type: string;
   data: any;
+  eventType?: string;
 }
 
 export class WebhookService {
   async processWebhookEvent(event: WebhookEvent): Promise<void> {
-    const eventId = event.data?.id || 'unknown';
+    // Handle both direct webhook events and queued events
+    const eventType = event.type || event.eventType;
+    const eventData = event.data?.data || event.data;
+    const eventId = eventData?.id || 'unknown';
+
     try {
       logger.info(`[${eventId}] Started processing webhook event`, {
         eventId,
-        eventType: event.type,
-        data: event.data
+        eventType,
+        data: eventData
       });
 
-      switch (event.type) {
+      switch (eventType) {
         case 'user.created':
-          await this.handleUserCreated(event.data);
+          await this.handleUserCreated(eventData);
           break;
         case 'user.updated':
-          await this.handleUserUpdated(event.data);
+          await this.handleUserUpdated(eventData);
           break;
         case 'user.deleted':
-          await this.handleUserDeleted(event.data);
+          await this.handleUserDeleted(eventData);
           break;
         default:
           logger.warn(`[${eventId}] Unhandled webhook event type`, {
             eventId,
-            eventType: event.type
+            eventType
           });
       }
 
       logger.info(`[${eventId}] Successfully processed webhook event`, {
         eventId,
-        eventType: event.type
+        eventType
       });
     } catch (error) {
       logger.error(`[${eventId}] Error processing webhook event:`, {
         error,
         eventId,
-        eventType: event.type,
-        data: event.data,
+        eventType,
+        data: eventData,
         stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
