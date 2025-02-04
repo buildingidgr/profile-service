@@ -9,6 +9,28 @@ const profileService = new ProfileService();
 const preferencesService = new PreferencesService();
 
 export class ProfileController {
+  async createProfile(req: Request, res: Response, next: NextFunction) {
+    try {
+      const clerkId = req.user?.sub;
+      if (!clerkId) {
+        throw new BadRequestError('User ID is required');
+      }
+
+      const profileData = {
+        ...req.body,
+        clerkId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const profile = await profileService.createProfile(profileData);
+      res.status(201).json(profile);
+    } catch (error) {
+      logger.error('Error creating profile:', error);
+      next(error);
+    }
+  }
+
   async getProfile(req: Request, res: Response, next: NextFunction) {
     try {
       const clerkId = req.user?.sub;
