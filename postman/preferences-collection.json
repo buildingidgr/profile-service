@@ -1,0 +1,181 @@
+{
+  "info": {
+    "name": "Profile Service - Preferences",
+    "description": "Collection for managing user preferences in the Profile Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get User Preferences",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/me/preferences",
+          "host": ["{{base_url}}"],
+          "path": ["me", "preferences"]
+        },
+        "description": "Retrieves the user's preferences. Creates default preferences if none exist."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/me/preferences"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "id": "6753620ee4af3b0f2cf10107",
+            "clerkId": "user_2prIb6NUsyTjopaWeWDjFW8jdGY",
+            "preferences": {
+              "notifications": {
+                "email": {
+                  "updates": false,
+                  "marketing": false,
+                  "security": false,
+                  "newsletters": true
+                }
+              },
+              "dashboard": {
+                "language": "en-US",
+                "timezone": "Pacific/Pago_Pago"
+              },
+              "display": {
+                "theme": "light"
+              }
+            },
+            "createdAt": "2024-12-06T20:43:58.982Z",
+            "updatedAt": "2025-02-04T08:28:49.237Z"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Update User Preferences",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"notifications\": {\n        \"email\": {\n            \"newsletters\": false,\n            \"marketing\": true\n        }\n    }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/me/preferences",
+          "host": ["{{base_url}}"],
+          "path": ["me", "preferences"]
+        },
+        "description": "Updates specific fields in the user's preferences while preserving others."
+      },
+      "response": [
+        {
+          "name": "Success Response",
+          "originalRequest": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"notifications\": {\n        \"email\": {\n            \"newsletters\": false,\n            \"marketing\": true\n        }\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/me/preferences"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "id": "6753620ee4af3b0f2cf10107",
+            "clerkId": "user_2prIb6NUsyTjopaWeWDjFW8jdGY",
+            "preferences": {
+              "notifications": {
+                "email": {
+                  "updates": false,
+                  "marketing": true,
+                  "security": false,
+                  "newsletters": false
+                }
+              },
+              "dashboard": {
+                "language": "en-US",
+                "timezone": "Pacific/Pago_Pago"
+              },
+              "display": {
+                "theme": "light"
+              }
+            },
+            "createdAt": "2024-12-06T20:43:58.982Z",
+            "updatedAt": "2025-02-04T08:28:49.237Z"
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "your_access_token_here",
+      "type": "string"
+    }
+  ]
+} 

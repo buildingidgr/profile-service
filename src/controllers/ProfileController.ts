@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { ProfileService } from '../services/ProfileService';
 import authService from '../services/authService';
 import { createLogger } from '../utils/logger';
-import { prisma, safeGetPreferences, safeUpdatePreferences } from '../utils/database';
+import { prisma } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
 import { MongoClient, ObjectId } from 'mongodb';
 import { config } from '../config';
