@@ -1,9 +1,9 @@
 import { MongoClient } from 'mongodb';
 import { createLogger } from '../shared/utils/logger';
 import { BadRequestError } from '../shared/utils/errors';
+import { mongoClient } from '../shared/utils/database';
 
 const logger = createLogger('ProfessionalService');
-const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
 const db = mongoClient.db();
 
 export interface ProfessionalInfo {
@@ -78,27 +78,63 @@ export class ProfessionalService {
       const professionalCollection = db.collection('ProfessionalInfo');
       const currentInfo = await professionalCollection.findOne({ clerkId });
 
-      // Validate profession if it's being updated
-      if (data.profession?.current && !DEFAULT_PROFESSIONAL_INFO.profession.allowedValues.includes(data.profession.current)) {
-        throw new BadRequestError('Invalid profession value');
+      if (!currentInfo) {
+        // If no professional info exists, create with defaults first
+        await this.createDefaultProfessionalInfo(clerkId);
+        return this.updateProfessionalInfo(clerkId, data);
       }
 
-      const updatedInfo = {
-        ...DEFAULT_PROFESSIONAL_INFO,
-        ...(currentInfo?.professionalInfo || {}),
-        ...data
-      };
+      // Create update operations for each field in the request
+      const updateOperations: { [key: string]: any } = {};
+
+      // Handle profession updates
+      if (data.profession?.current) {
+        // Validate profession value
+        if (!DEFAULT_PROFESSIONAL_INFO.profession.allowedValues.includes(data.profession.current)) {
+          throw new BadRequestError('Invalid profession value');
+        }
+        updateOperations['professionalInfo.profession.current'] = data.profession.current;
+      }
+
+      // Handle AMTEE updates
+      if (data.amtee !== undefined) {
+        updateOperations['professionalInfo.amtee'] = data.amtee;
+      }
+
+      // Handle area of operation updates
+      if (data.areaOfOperation) {
+        if (data.areaOfOperation.primary !== undefined) {
+          updateOperations['professionalInfo.areaOfOperation.primary'] = data.areaOfOperation.primary;
+        }
+        if (data.areaOfOperation.address !== undefined) {
+          updateOperations['professionalInfo.areaOfOperation.address'] = data.areaOfOperation.address;
+        }
+        if (data.areaOfOperation.coordinates) {
+          if (data.areaOfOperation.coordinates.latitude !== undefined) {
+            updateOperations['professionalInfo.areaOfOperation.coordinates.latitude'] = 
+              data.areaOfOperation.coordinates.latitude;
+          }
+          if (data.areaOfOperation.coordinates.longitude !== undefined) {
+            updateOperations['professionalInfo.areaOfOperation.coordinates.longitude'] = 
+              data.areaOfOperation.coordinates.longitude;
+          }
+        }
+      }
+
+      // If no valid updates, return current info
+      if (Object.keys(updateOperations).length === 0) {
+        return currentInfo.professionalInfo;
+      }
 
       const result = await professionalCollection.findOneAndUpdate(
         { clerkId },
         { 
-          $set: { 
-            professionalInfo: updatedInfo,
+          $set: {
+            ...updateOperations,
             updatedAt: new Date()
           }
         },
         { 
-          upsert: true,
           returnDocument: 'after'
         }
       );

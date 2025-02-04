@@ -64,22 +64,61 @@ export class PreferencesService {
       const preferencesCollection = db.collection('UserPreferences');
       const currentPreferences = await preferencesCollection.findOne({ clerkId });
 
-      const updatedPreferences = {
-        ...DEFAULT_PREFERENCES,
-        ...(currentPreferences?.preferences || {}),
-        ...data
-      };
+      if (!currentPreferences) {
+        // If no preferences exist, create with defaults and apply updates
+        const newPreferences = {
+          clerkId,
+          preferences: DEFAULT_PREFERENCES,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        await preferencesCollection.insertOne(newPreferences);
+        return this.updatePreferences(clerkId, data);
+      }
 
+      // Create update operations for each field in the request
+      const updateOperations: { [key: string]: any } = {};
+
+      // Handle dashboard updates
+      if (data.dashboard) {
+        if (data.dashboard.timezone) {
+          updateOperations['preferences.dashboard.timezone'] = data.dashboard.timezone;
+        }
+        if (data.dashboard.language) {
+          updateOperations['preferences.dashboard.language'] = data.dashboard.language;
+        }
+      }
+
+      // Handle notifications updates
+      if (data.notifications?.email) {
+        const emailUpdates = data.notifications.email;
+        Object.entries(emailUpdates).forEach(([key, value]) => {
+          if (value !== undefined) {
+            updateOperations[`preferences.notifications.email.${key}`] = value;
+          }
+        });
+      }
+
+      // Handle display updates
+      if (data.display?.theme) {
+        updateOperations['preferences.display.theme'] = data.display.theme;
+      }
+
+      // If no valid updates, return current preferences
+      if (Object.keys(updateOperations).length === 0) {
+        return currentPreferences.preferences;
+      }
+
+      // Perform the update
       const result = await preferencesCollection.findOneAndUpdate(
         { clerkId },
         { 
-          $set: { 
-            preferences: updatedPreferences,
+          $set: {
+            ...updateOperations,
             updatedAt: new Date()
           }
         },
         { 
-          upsert: true,
           returnDocument: 'after'
         }
       );

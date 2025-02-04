@@ -125,30 +125,36 @@ export class ProfileService {
     }
   }
 
-  async updateProfile(clerkId: string, data: ProfileUpdateData) {
+  async updateProfile(clerkId: string, data: ProfileUpdateData): Promise<any> {
     try {
       // Only allow specific fields to be updated
-      const allowedUpdates: ProfileUpdateData = {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        avatarUrl: data.avatarUrl
-      };
+      const updateOperations: { [key: string]: any } = {};
 
-      // Remove undefined values
-      Object.keys(allowedUpdates).forEach(key => {
-        if (allowedUpdates[key as keyof ProfileUpdateData] === undefined) {
-          delete allowedUpdates[key as keyof ProfileUpdateData];
-        }
-      });
+      // Handle each allowed field individually
+      if (data.firstName !== undefined) {
+        updateOperations.firstName = data.firstName;
+      }
+      if (data.lastName !== undefined) {
+        updateOperations.lastName = data.lastName;
+      }
+      if (data.avatarUrl !== undefined) {
+        updateOperations.avatarUrl = data.avatarUrl;
+      }
 
-      logger.info(`Updating profile for user: ${clerkId}`, { data: allowedUpdates });
+      // If no valid updates, return current profile
+      if (Object.keys(updateOperations).length === 0) {
+        const currentProfile = await this.getProfile(clerkId);
+        return currentProfile;
+      }
+
+      logger.info(`Updating profile for user: ${clerkId}`, { data: updateOperations });
     
       const profileCollection = db.collection('Profile');
       const result = await profileCollection.findOneAndUpdate(
         { clerkId },
         {
           $set: {
-            ...allowedUpdates,
+            ...updateOperations,
             updatedAt: new Date()
           }
         },
