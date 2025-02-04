@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RedisService = void 0;
 const redis_1 = require("redis");
+const logger_1 = require("@shared/utils/logger");
 const crypto_1 = __importDefault(require("crypto"));
-const logger_1 = require("../utils/logger");
 const logger = (0, logger_1.createLogger)('RedisService');
 class RedisService {
     constructor() {
@@ -55,3 +55,4 @@ class RedisService {
     }
 }
 exports.RedisService = RedisService;
+//# sourceMappingURL=RedisService.js.map

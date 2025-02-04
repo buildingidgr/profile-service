@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.config = void 0;
-/// <reference types="node" />
 require("dotenv/config");
 exports.config = {
     port: process.env.PORT,
@@ -28,3 +27,4 @@ exports.config = {
         from: process.env.SMTP_FROM || 'noreply@yourdomain.com'
     }
 };
+//# sourceMappingURL=index.js.map

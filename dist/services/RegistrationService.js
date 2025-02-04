@@ -1,12 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RegistrationService = void 0;
-const logger_1 = require("../utils/logger");
-const mongodb_1 = require("mongodb");
+const logger_1 = require("@shared/utils/logger");
+const database_1 = require("@shared/utils/database");
 const logger = (0, logger_1.createLogger)('RegistrationService');
-// MongoDB connection
-const mongoClient = new mongodb_1.MongoClient(process.env.DATABASE_URL || '');
-const db = mongoClient.db();
+const db = database_1.mongoClient.db();
 class RegistrationService {
     async storeRegistrationAttempt(payload) {
         try {
@@ -51,3 +49,4 @@ class RegistrationService {
     }
 }
 exports.RegistrationService = RegistrationService;
+//# sourceMappingURL=RegistrationService.js.map

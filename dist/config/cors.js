@@ -20,5 +20,6 @@ exports.corsOptions = {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    maxAge: 600 // 10 minutes
+    maxAge: 600
 };
+//# sourceMappingURL=cors.js.map

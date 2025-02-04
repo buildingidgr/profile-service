@@ -4,16 +4,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProfileService = void 0;
-const logger_1 = require("../utils/logger");
+const logger_1 = require("@shared/utils/logger");
 const mongodb_1 = require("mongodb");
 const crypto_1 = __importDefault(require("crypto"));
 const RedisService_1 = require("./RedisService");
-const errors_1 = require("../utils/errors");
-const PreferencesService_1 = require("./PreferencesService");
+const errors_1 = require("@shared/utils/errors");
+const PreferencesService_1 = require("@services/PreferencesService");
+const database_1 = require("@shared/utils/database");
 const logger = (0, logger_1.createLogger)('ProfileService');
-// MongoDB connection
-const mongoClient = new mongodb_1.MongoClient(process.env.DATABASE_URL || '');
-const db = mongoClient.db();
+const db = database_1.mongoClient.db();
 const DEFAULT_PREFERENCES = {
     dashboard: {
         timezone: "Europe/Athens",
@@ -63,10 +62,9 @@ class ProfileService {
             if (newProfile && data.externalAccounts && data.externalAccounts.length > 0) {
                 await this.createExternalAccounts(newProfile._id.toString(), data.externalAccounts);
             }
-            // Create default preferences for the new user
             const preferencesService = new PreferencesService_1.PreferencesService();
             await preferencesService.createDefaultPreferences(data.clerkId);
-            logger.info('Profile created successfully', { profileId: newProfile?._id });
+            logger.info('Profile created successfully', { profileId: newProfile === null || newProfile === void 0 ? void 0 : newProfile._id });
             return newProfile;
         }
         catch (error) {
@@ -93,13 +91,11 @@ class ProfileService {
     }
     async updateProfile(clerkId, data) {
         try {
-            // Only allow specific fields to be updated
             const allowedUpdates = {
                 firstName: data.firstName,
                 lastName: data.lastName,
                 avatarUrl: data.avatarUrl
             };
-            // Remove undefined values
             Object.keys(allowedUpdates).forEach(key => {
                 if (allowedUpdates[key] === undefined) {
                     delete allowedUpdates[key];
@@ -114,7 +110,7 @@ class ProfileService {
                 }
             }, {
                 returnDocument: 'after',
-                projection: { preferences: 0 } // Exclude preferences from the response
+                projection: { preferences: 0 }
             });
             if (!result.value) {
                 throw new errors_1.BadRequestError('Profile not found');
@@ -140,7 +136,6 @@ class ProfileService {
             if (!result.value) {
                 throw new errors_1.BadRequestError('Profile not found');
             }
-            // Store in Redis
             await this.redisService.storeApiKey(clerkId, apiKey);
             logger.info(`Generated and stored new API key for user: ${clerkId}`);
             return apiKey;
@@ -170,7 +165,6 @@ class ProfileService {
                 error: error instanceof Error ? error.message : 'Unknown error',
                 clerkId
             });
-            // Don't throw here, just log the error
         }
     }
     async deleteProfile(clerkId) {
@@ -182,15 +176,12 @@ class ProfileService {
                 logger.warn(`Profile not found for deletion: ${clerkId}`);
                 return null;
             }
-            // Delete associated ProfileExternalAccount documents
             const externalAccountCollection = db.collection('ProfileExternalAccount');
             const deleteResult = await externalAccountCollection.deleteMany({ clerkId });
             logger.info(`Deleted ${deleteResult.deletedCount} associated external accounts for user: ${clerkId}`);
-            // Delete API key from Redis
             if (result.value.apiKey) {
                 await this.redisService.deleteApiKey(result.value.apiKey);
             }
-            // Clear any cached data
             await this.redisService.deleteApiKey(`profile:${clerkId}`);
             logger.info(`Profile and related data deleted for user: ${clerkId}`);
             return result.value;
@@ -208,7 +199,7 @@ class ProfileService {
                 $set: {
                     phoneNumber: phoneNumber,
                     phoneNumberId: phoneNumberId,
-                    phoneVerified: false, // Set to false initially, will be updated when verified
+                    phoneVerified: false,
                     updatedAt: new Date()
                 }
             }, { returnDocument: 'after' });
@@ -224,28 +215,28 @@ class ProfileService {
         }
     }
     async updatePreferences(clerkId, data) {
+        var _a, _b, _c, _d, _e;
         try {
             const profileCollection = db.collection('Profile');
             const profile = await profileCollection.findOne({ clerkId });
             if (!profile) {
                 throw new errors_1.BadRequestError('Profile not found');
             }
-            // Merge existing preferences with updates
             const updatedPreferences = {
                 ...profile.preferences,
                 ...data,
                 dashboard: {
-                    ...profile.preferences?.dashboard,
+                    ...(_a = profile.preferences) === null || _a === void 0 ? void 0 : _a.dashboard,
                     ...data.dashboard
                 },
                 notifications: {
                     email: {
-                        ...profile.preferences?.notifications?.email,
-                        ...data.notifications?.email
+                        ...(_c = (_b = profile.preferences) === null || _b === void 0 ? void 0 : _b.notifications) === null || _c === void 0 ? void 0 : _c.email,
+                        ...(_d = data.notifications) === null || _d === void 0 ? void 0 : _d.email
                     }
                 },
                 display: {
-                    ...profile.preferences?.display,
+                    ...(_e = profile.preferences) === null || _e === void 0 ? void 0 : _e.display,
                     ...data.display
                 }
             };
@@ -264,3 +255,4 @@ class ProfileService {
     }
 }
 exports.ProfileService = ProfileService;
+//# sourceMappingURL=ProfileService.js.map

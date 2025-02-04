@@ -25,6 +25,7 @@ class AuthService {
         return response.data;
     }
     async validateToken(token) {
+        var _a, _b;
         if (!token) {
             throw new Error('Token is required');
         }
@@ -41,8 +42,8 @@ class AuthService {
         catch (error) {
             if (axios_1.default.isAxiosError(error)) {
                 console.error('Auth service error:', {
-                    status: error.response?.status,
-                    data: error.response?.data,
+                    status: (_a = error.response) === null || _a === void 0 ? void 0 : _a.status,
+                    data: (_b = error.response) === null || _b === void 0 ? void 0 : _b.data,
                     url: `${this.baseUrl}/v1/token/validate`
                 });
             }
@@ -51,3 +52,4 @@ class AuthService {
     }
 }
 exports.default = new AuthService();
+//# sourceMappingURL=authService.js.map

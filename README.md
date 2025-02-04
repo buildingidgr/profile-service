@@ -1,5 +1,92 @@
 # Profile Service
 
+A microservice for managing professional profiles and registration attempts.
+
+## Prerequisites
+
+- Node.js >= 18.0.0
+- MongoDB
+- Redis
+
+## Environment Variables
+
+The following environment variables are required:
+
+```env
+# Database
+DATABASE_URL=mongodb://your-mongodb-url
+REDIS_URL=redis://your-redis-url
+
+# App Configuration
+PORT=3000
+NODE_ENV=production
+
+# JWT
+JWT_SECRET=your-jwt-secret
+
+# External Services
+AUTH_SERVICE_URL=http://auth-service-url
+```
+
+## Development
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Generate Prisma client:
+```bash
+npm run prisma:generate
+```
+
+3. Push database schema:
+```bash
+npm run prisma:db:push
+```
+
+4. Start development server:
+```bash
+npm run dev
+```
+
+## Production Build
+
+```bash
+npm run build
+npm start
+```
+
+## Railway Deployment
+
+This service is configured for deployment on Railway.
+
+1. Create a new project on Railway
+2. Connect your GitHub repository
+3. Add the required environment variables in Railway dashboard
+4. Deploy!
+
+Railway will automatically:
+1. Install dependencies
+2. Generate Prisma client
+3. Build the TypeScript code
+4. Start the service
+
+## API Documentation
+
+### Professional Profile Endpoints
+
+- `GET /api/professional/:clerkId` - Get professional info
+- `PUT /api/professional/:clerkId` - Update professional info
+
+### Registration Endpoints
+
+- `GET /api/registration-attempts` - Get registration attempts
+- Query parameters:
+  - `page` (default: 1)
+  - `limit` (default: 10)
+  - `phoneNumber` (optional)
+
 ## Recent Updates
 - Unified authentication across all profile-related endpoints
 - Removed manual Clerk ID parameter requirements
