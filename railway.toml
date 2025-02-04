@@ -6,8 +6,8 @@ buildCommand = "npm run build"
 startCommand = "npm start"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
-restartPolicyType = "on-failure"
-restartPolicyMaxRetries = 5
+restartPolicy = "on-failure"
+maxRestarts = 5
 
 [env]
 PORT = "3000"

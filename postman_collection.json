@@ -1,0 +1,322 @@
+{
+  "info": {
+    "name": "MechHub Profile Service API",
+    "description": "API collection for MechHub Profile Service",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Health check endpoint to verify service status"
+      },
+      "response": []
+    },
+    {
+      "name": "Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profiles", "me"]
+            },
+            "description": "Get the current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clerkId\": \"user_123\",\n  \"email\": \"user@example.com\",\n  \"emailVerified\": true,\n  \"phoneNumber\": \"+1234567890\",\n  \"phoneVerified\": false,\n  \"username\": \"johndoe\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"avatarUrl\": \"https://example.com/avatar.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profiles", "me"]
+            },
+            "description": "Create a new user profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"avatarUrl\": \"https://example.com/avatar.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profiles", "me"]
+            },
+            "description": "Update the current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Profile",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profiles", "me"]
+            },
+            "description": "Delete the current user's profile"
+          },
+          "response": []
+        },
+        {
+          "name": "Generate API Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/me/api-key",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profiles", "me", "api-key"]
+            },
+            "description": "Generate a new API key for the user"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Preferences",
+      "item": [
+        {
+          "name": "Get Preferences",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "preferences"]
+            },
+            "description": "Get user preferences"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dashboard\": {\n    \"timezone\": \"Europe/Athens\",\n    \"language\": \"el-GR\"\n  },\n  \"notifications\": {\n    \"email\": {\n      \"marketing\": false,\n      \"updates\": true,\n      \"security\": true,\n      \"newsletters\": false,\n      \"productAnnouncements\": true\n    }\n  },\n  \"display\": {\n    \"theme\": \"dark\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "preferences"]
+            },
+            "description": "Update user preferences"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Professional",
+      "item": [
+        {
+          "name": "Get Professional Info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/professional",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "professional"]
+            },
+            "description": "Get professional information"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Professional Info",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"profession\": {\n    \"current\": \"Civil Engineer\"\n  },\n  \"amtee\": \"12345\",\n  \"areaOfOperation\": {\n    \"primary\": \"Athens\",\n    \"address\": \"123 Main St, Athens\",\n    \"coordinates\": {\n      \"latitude\": 37.9838,\n      \"longitude\": 23.7275\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/professional",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "professional"]
+            },
+            "description": "Update professional information"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Registration",
+      "item": [
+        {
+          "name": "Get Registration Attempts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/registration/attempts?page=1&limit=10&phoneNumber=+1234567890",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "registration", "attempts"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "phoneNumber",
+                  "value": "+1234567890",
+                  "description": "Optional phone number filter"
+                }
+              ]
+            },
+            "description": "Get registration attempts with pagination and optional phone number filter"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    }
+  ]
+} 
