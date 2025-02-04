@@ -73,7 +73,7 @@ async function startServer() {
     }
 
     // API routes with JWT validation
-    app.use('/api/profiles', validateToken, profileRoutes);
+    app.use('/api/profiles', profileRoutes);
     app.use('/api/preferences', validateToken, preferencesRoutes);
     app.use('/api/professional', validateToken, professionalRoutes);
     app.use('/api/registration', validateToken, registrationRoutes);
