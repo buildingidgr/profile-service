@@ -1,7 +1,6 @@
 import { createLogger } from '../shared/utils/logger';
 import { MongoClient, ObjectId } from 'mongodb';
 import crypto from 'crypto';
-import { RedisService } from './RedisService';
 import { BadRequestError } from '../shared/utils/errors';
 import { PreferencesService } from '../api/services/PreferencesService';
 import { mongoClient } from '../shared/utils/database';
@@ -72,8 +71,6 @@ export interface ProfileUpdateData {
 }
 
 export class ProfileService {
-  private redisService: RedisService | null = null;
-
   async createProfile(data: ProfileData) {
     try {
       logger.info('Creating new profile', { data: JSON.stringify(data) });
@@ -196,11 +193,6 @@ export class ProfileService {
 
   async generateAndStoreApiKey(clerkId: string): Promise<string> {
     try {
-      // Initialize Redis service only when needed
-      if (!this.redisService) {
-        this.redisService = new RedisService();
-      }
-
       const apiKey = this.generateApiKey();
       
       const profileCollection = db.collection('Profile');
@@ -217,13 +209,6 @@ export class ProfileService {
 
       if (!result.value) {
         throw new BadRequestError('Profile not found');
-      }
-
-      try {
-        // Try to store in Redis, but don't fail if Redis is unavailable
-        await this.redisService.storeApiKey(clerkId, apiKey);
-      } catch (redisError) {
-        logger.warn('Failed to store API key in Redis, continuing without caching', redisError);
       }
 
       logger.info(`Generated and stored new API key for user: ${clerkId}`);
@@ -275,20 +260,6 @@ export class ProfileService {
       const externalAccountCollection = db.collection('ProfileExternalAccount');
       const deleteResult = await externalAccountCollection.deleteMany({ clerkId });
       logger.info(`Deleted ${deleteResult.deletedCount} associated external accounts for user: ${clerkId}`);
-
-      // Try to clean up Redis if we have an API key
-      if (result.value.apiKey && !this.redisService) {
-        this.redisService = new RedisService();
-      }
-
-      if (this.redisService && result.value.apiKey) {
-        try {
-          await this.redisService.deleteApiKey(result.value.apiKey);
-          await this.redisService.deleteApiKey(`profile:${clerkId}`);
-        } catch (redisError) {
-          logger.warn('Failed to clean up Redis keys, continuing with deletion', redisError);
-        }
-      }
 
       logger.info(`Profile and related data deleted for user: ${clerkId}`);
       return result.value;

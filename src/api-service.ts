@@ -8,7 +8,6 @@ import { profileRoutes } from './api/routes/profileRoutes';
 import { validateToken } from './api/middleware/validateToken';
 import { errorHandler } from './api/middleware/errorHandler';
 import { connectToDatabase, disconnectFromDatabase } from './shared/utils/database';
-import { connectRedis, disconnectRedis } from './shared/utils/redis';
 import { requestLogger } from './api/middleware/requestLogger';
 import { preferencesRoutes } from './api/routes/preferencesRoutes';
 import { professionalRoutes } from './api/routes/professionalRoutes';
@@ -65,13 +64,6 @@ async function startServer() {
       throw error;
     });
 
-    // Try to connect to Redis but don't fail if it doesn't connect
-    try {
-      await connectRedis();
-    } catch (error) {
-      logger.warn('Redis connection failed, continuing without Redis:', error);
-    }
-
     // API routes with JWT validation
     app.use('/api/profiles', profileRoutes);
     app.use('/api/preferences', validateToken, preferencesRoutes);
@@ -118,14 +110,9 @@ async function startServer() {
 async function cleanup() {
   logger.info('Cleaning up...');
   try {
-    await Promise.allSettled([
-      disconnectFromDatabase().catch(error => {
-        logger.error('Error during database disconnect:', error);
-      }),
-      disconnectRedis().catch(error => {
-        logger.error('Error during Redis disconnect:', error);
-      })
-    ]);
+    await disconnectFromDatabase().catch(error => {
+      logger.error('Error during database disconnect:', error);
+    });
   } catch (error) {
     logger.error('Error during cleanup:', error);
   }
