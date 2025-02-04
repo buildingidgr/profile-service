@@ -17,6 +17,8 @@ export class RabbitMQConnection {
   private connectionAttempts: number = 0;
   private readonly maxConnectionAttempts: number = 10;
   private heartbeatTimer: NodeJS.Timeout | null = null;
+  private activeQueues: Set<string> = new Set();
+  private queueCallbacks: Map<string, (message: any) => Promise<void>> = new Map();
 
   async connect() {
     if (this.isConnecting) {
@@ -38,7 +40,7 @@ export class RabbitMQConnection {
         keepAlive: true,
         keepAliveDelay: 15000, // 15 seconds
         timeout: SOCKET_TIMEOUT,
-        noDelay: true // Disable Nagle's algorithm
+        noDelay: true
       };
 
       this.connection = await amqp.connect(config.rabbitmqUrl || '', {
@@ -53,24 +55,14 @@ export class RabbitMQConnection {
       // Reset connection attempts on successful connection
       this.connectionAttempts = 0;
 
-      const queueName = 'webhook-events';
-      try {
-        // Create the queue with basic configuration to match existing queue
-        await this.channel.assertQueue(queueName, { 
-          durable: true
-        });
-        
-        logger.info(`Successfully asserted queue: ${queueName}`);
-      } catch (queueError) {
-        logger.error(`Failed to setup queue ${queueName}:`, queueError);
-        throw queueError;
-      }
-
       // Setup connection monitoring
       this.setupConnectionMonitoring();
 
       // Set channel prefetch for better load handling
       await this.channel.prefetch(1);
+
+      // Reassert all active queues and their consumers
+      await this.reestablishQueues();
 
       this.isConnecting = false;
       logger.info('RabbitMQ connection established and ready to consume messages');
@@ -84,15 +76,94 @@ export class RabbitMQConnection {
     }
   }
 
+  private async reestablishQueues() {
+    if (!this.channel) return;
+
+    for (const queue of this.activeQueues) {
+      try {
+        await this.channel.assertQueue(queue, { durable: true });
+        logger.info(`Reasserted queue: ${queue}`);
+
+        const callback = this.queueCallbacks.get(queue);
+        if (callback) {
+          await this.setupQueueConsumer(queue, callback);
+          logger.info(`Reestablished consumer for queue: ${queue}`);
+        }
+      } catch (error) {
+        logger.error(`Failed to reestablish queue ${queue}:`, error);
+      }
+    }
+  }
+
+  private async setupQueueConsumer(queue: string, callback: (message: any) => Promise<void>) {
+    if (!this.channel) return;
+
+    try {
+      await this.channel.consume(queue, async (msg) => {
+        if (msg) {
+          const messageId = msg.properties.messageId || 'unknown';
+          logger.info(`[${messageId}] Processing message from queue ${queue}`, {
+            queue,
+            messageId,
+            content: msg.content.toString(),
+            properties: msg.properties
+          });
+
+          try {
+            const content = JSON.parse(msg.content.toString());
+            await callback(content);
+            this.channel?.ack(msg);
+            logger.info(`[${messageId}] Successfully processed message from ${queue}`);
+          } catch (error) {
+            logger.error(`[${messageId}] Error processing message from queue ${queue}:`, {
+              error,
+              messageId,
+              content: msg.content.toString(),
+              stack: error instanceof Error ? error.stack : undefined
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            this.channel?.nack(msg, false, true);
+          }
+        }
+      });
+    } catch (error) {
+      logger.error(`Error setting up consumer for queue ${queue}:`, error);
+      throw error;
+    }
+  }
+
+  async consumeMessages(queue: string, callback: (message: any) => Promise<void>) {
+    if (!this.channel) {
+      throw new Error('RabbitMQ channel not initialized');
+    }
+
+    try {
+      // Add to active queues and store callback
+      this.activeQueues.add(queue);
+      this.queueCallbacks.set(queue, callback);
+
+      await this.channel.assertQueue(queue, { durable: true });
+      logger.info(`Started consuming messages from queue: ${queue}`);
+
+      await this.setupQueueConsumer(queue, callback);
+    } catch (error) {
+      logger.error(`Error setting up message consumption for queue ${queue}:`, {
+        error,
+        queue,
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error;
+    }
+  }
+
   private setupConnectionMonitoring() {
     if (!this.connection || !this.channel) return;
 
-    // Clear any existing timers
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
     }
 
-    // Setup connection event handlers
     this.connection.on('error', (err) => {
       logger.error('RabbitMQ connection error:', { error: err, stack: err.stack });
       this.handleConnectionFailure();
@@ -113,18 +184,19 @@ export class RabbitMQConnection {
       this.handleChannelFailure();
     });
 
-    // Setup heartbeat monitoring
+    // Setup heartbeat monitoring for all active queues
     this.heartbeatTimer = setInterval(async () => {
       try {
-        if (this.channel) {
-          // Perform a lightweight operation to check connection
-          await this.channel.checkQueue('webhook-events');
+        if (this.channel && this.activeQueues.size > 0) {
+          // Check the first active queue as a heartbeat
+          const queue = this.activeQueues.values().next().value;
+          await this.channel.checkQueue(queue);
         }
       } catch (error) {
         logger.error('Heartbeat check failed:', error);
         this.handleConnectionFailure();
       }
-    }, (HEARTBEAT_INTERVAL * 1000) / 2); // Check twice as often as the heartbeat interval
+    }, (HEARTBEAT_INTERVAL * 1000) / 2);
   }
 
   private handleConnectionFailure() {
@@ -208,71 +280,6 @@ export class RabbitMQConnection {
     return this.channel;
   }
 
-  async consumeMessages(queue: string, callback: (message: any) => Promise<void>) {
-    if (!this.channel) {
-      logger.error('Failed to consume messages: RabbitMQ channel not initialized');
-      throw new Error('RabbitMQ channel not initialized');
-    }
-
-    try {
-      await this.channel.assertQueue(queue, { durable: true });
-      logger.info(`Started consuming messages from queue: ${queue}`);
-
-      this.channel.consume(queue, async (msg) => {
-        if (msg) {
-          const messageId = msg.properties.messageId || 'unknown';
-          logger.info(`[${messageId}] Processing message from queue ${queue}`, {
-            queue,
-            messageId,
-            content: msg.content.toString(),
-            properties: msg.properties
-          });
-
-          try {
-            const content = JSON.parse(msg.content.toString());
-            logger.info(`[${messageId}] Parsed message content`, { 
-              messageId,
-              eventType: content.type,
-              userId: content.data?.id,
-              data: content 
-            });
-
-            await callback(content);
-            this.channel?.ack(msg);
-            logger.info(`[${messageId}] Successfully processed and acknowledged message`, {
-              messageId,
-              eventType: content.type,
-              userId: content.data?.id
-            });
-          } catch (error) {
-            logger.error(`[${messageId}] Error processing message from queue ${queue}:`, {
-              error,
-              messageId,
-              content: msg.content.toString(),
-              stack: error instanceof Error ? error.stack : undefined
-            });
-            
-            // Add delay before requeuing to prevent immediate reprocessing
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            
-            this.channel?.nack(msg, false, true);
-            logger.info(`[${messageId}] Message nacked and requeued after error`, {
-              messageId,
-              queue
-            });
-          }
-        }
-      });
-    } catch (error) {
-      logger.error(`Error setting up message consumption for queue ${queue}:`, {
-        error,
-        queue,
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      throw error;
-    }
-  }
-
   async close() {
     if (this.heartbeatTimer) {
       clearInterval(this.heartbeatTimer);
@@ -282,6 +289,10 @@ export class RabbitMQConnection {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
+
+    // Clear queue tracking
+    this.activeQueues.clear();
+    this.queueCallbacks.clear();
 
     if (this.channel) {
       await this.channel.close();
