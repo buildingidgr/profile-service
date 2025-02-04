@@ -1,6 +1,9 @@
 import { MongoClient } from 'mongodb';
-import { createLogger } from '../utils/logger';
-import { BadRequestError } from '../utils/errors';
+import { createLogger } from '../../shared/utils/logger';
+import { BadRequestError } from '../../shared/utils/errors';
+import { Professional } from '../models/Professional';
+import { logger } from '../../shared/utils/logger';
+import { NotFoundError } from '../../shared/utils/errors';
 
 const logger = createLogger('ProfessionalService');
 const mongoClient = new MongoClient(process.env.DATABASE_URL || '');

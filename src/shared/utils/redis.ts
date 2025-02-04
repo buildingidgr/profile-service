@@ -1,12 +1,10 @@
-import { createClient } from 'redis';
-import { config } from '../config';
+import Redis from 'ioredis';
+import { config } from '../../config';
 import { createLogger } from './logger';
 
 const logger = createLogger('redis');
 
-const redisClient = createClient({
-  url: config.redisUrl
-});
+const redisClient = new Redis(config.redisUrl);
 
 redisClient.on('error', (err) => logger.error('Redis Client Error', err));
 

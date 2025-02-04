@@ -53,3 +53,14 @@ model ProfessionalInfo {
   updatedAt       DateTime @updatedAt
 }
 
+model RegistrationAttempt {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  phoneNumber String
+  status      String
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phoneNumber])
+}
+

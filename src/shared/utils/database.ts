@@ -1,6 +1,6 @@
 import { MongoClient } from 'mongodb';
 import { PrismaClient } from '@prisma/client';
-import { config } from '@shared/config';
+import { config } from '../../config';
 import { createLogger } from './logger';
 import { Document, ObjectId } from 'mongodb';
 

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { createLogger } from '../utils/logger';
+import { createLogger } from '../../shared/utils/logger';
 
 const logger = createLogger('errorHandler');
 
