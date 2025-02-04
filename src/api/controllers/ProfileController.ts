@@ -7,6 +7,8 @@ import { BadRequestError } from '@shared/utils/errors';
 import { ObjectId } from 'mongodb';
 import { config } from '@shared/config';
 import { PreferencesService } from '@services/PreferencesService';
+import { ProfessionalService } from '@services/ProfessionalService';
+import { RedisService } from '@services/RedisService';
 
 // Extend Express Request type to include userId
 declare global {
@@ -284,9 +286,9 @@ export class ProfileController {
       }
 
       return res.json(professionalInfo);
-    } catch (error) {
+    } catch (error: any) {
       logger.error('Error getting professional info:', { 
-        error, 
+        error: error.message, 
         clerkId: req.user?.sub || req.userId,
         stack: error instanceof Error ? error.stack : undefined 
       });
