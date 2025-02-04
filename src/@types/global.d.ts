@@ -1,35 +1,55 @@
-// Logger module declarations
+// Type definitions for base modules
+interface Logger {
+  info(message: string, meta?: any): void;
+  error(message: string, meta?: any): void;
+  warn(message: string, meta?: any): void;
+  debug(message: string, meta?: any): void;
+}
+
+interface Config {
+  port: number;
+  jwtSecret: string;
+  auth: {
+    serviceUrl: string;
+  };
+  redis: {
+    host: string;
+    port: number;
+  };
+  mongodb: {
+    uri: string;
+  };
+}
+
+interface UserPreferences {
+  id: string;
+  clerkId: string;
+  preferences: {
+    [key: string]: any;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface RegistrationAttempt {
+  id: string;
+  email: string;
+  attempts: number;
+  lastAttempt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Module declarations for all possible import paths
 declare module '@utils/logger' {
-  export interface Logger {
-    info(message: string, meta?: any): void;
-    error(message: string, meta?: any): void;
-    warn(message: string, meta?: any): void;
-    debug(message: string, meta?: any): void;
-  }
   export const logger: Logger;
   export function createLogger(name: string): Logger;
 }
 
-// Config module declarations
 declare module '@shared/config' {
-  export interface Config {
-    port: number;
-    jwtSecret: string;
-    auth: {
-      serviceUrl: string;
-    };
-    redis: {
-      host: string;
-      port: number;
-    };
-    mongodb: {
-      uri: string;
-    };
-  }
   export const config: Config;
 }
 
-// Database module declarations
 declare module '@utils/database' {
   import { MongoClient, Db } from 'mongodb';
   export const mongoClient: MongoClient;
@@ -37,7 +57,6 @@ declare module '@utils/database' {
   export function deepMerge<T>(target: T, source: Partial<T>): T;
 }
 
-// Error module declarations
 declare module '@utils/errors' {
   export class BadRequestError extends Error {
     constructor(message: string);
@@ -50,18 +69,7 @@ declare module '@utils/errors' {
   }
 }
 
-// PreferencesService module declarations
 declare module '@services/PreferencesService' {
-  export interface UserPreferences {
-    id: string;
-    clerkId: string;
-    preferences: {
-      [key: string]: any;
-    };
-    createdAt: string;
-    updatedAt: string;
-  }
-
   export class PreferencesService {
     getPreferences(clerkId: string): Promise<UserPreferences>;
     updatePreferences(clerkId: string, data: any): Promise<UserPreferences>;
@@ -69,17 +77,7 @@ declare module '@services/PreferencesService' {
   }
 }
 
-// RegistrationService module declarations
 declare module '@services/RegistrationService' {
-  export interface RegistrationAttempt {
-    id: string;
-    email: string;
-    attempts: number;
-    lastAttempt: Date;
-    createdAt: Date;
-    updatedAt: Date;
-  }
-
   export class RegistrationService {
     recordAttempt(email: string): Promise<RegistrationAttempt>;
     getAttempts(email: string): Promise<RegistrationAttempt | null>;
@@ -87,24 +85,40 @@ declare module '@services/RegistrationService' {
   }
 }
 
-// Also declare relative path variations for backward compatibility
+// Relative path declarations for src/api
 declare module '../utils/logger' { export * from '@utils/logger'; }
-declare module '../config' { export * from '@shared/config'; }
 declare module '../utils/database' { export * from '@utils/database'; }
 declare module '../utils/errors' { export * from '@utils/errors'; }
+declare module '../config' { export * from '@shared/config'; }
 declare module '../services/PreferencesService' { export * from '@services/PreferencesService'; }
 declare module '../services/RegistrationService' { export * from '@services/RegistrationService'; }
+
+// Relative path declarations for current directory
 declare module './logger' { export * from '@utils/logger'; }
-declare module './config' { export * from '@shared/config'; }
 declare module './database' { export * from '@utils/database'; }
 declare module './errors' { export * from '@utils/errors'; }
+declare module './config' { export * from '@shared/config'; }
 declare module './PreferencesService' { export * from '@services/PreferencesService'; }
 declare module './RegistrationService' { export * from '@services/RegistrationService'; }
 
-// Declare .js variations
+// Declarations for .js files
 declare module '../utils/logger.js' { export * from '@utils/logger'; }
-declare module '../config.js' { export * from '@shared/config'; }
 declare module '../utils/database.js' { export * from '@utils/database'; }
 declare module '../utils/errors.js' { export * from '@utils/errors'; }
+declare module '../config.js' { export * from '@shared/config'; }
 declare module '../services/PreferencesService.js' { export * from '@services/PreferencesService'; }
-declare module '../services/RegistrationService.js' { export * from '@services/RegistrationService'; } 
+declare module '../services/RegistrationService.js' { export * from '@services/RegistrationService'; }
+declare module './logger.js' { export * from '@utils/logger'; }
+declare module './database.js' { export * from '@utils/database'; }
+declare module './errors.js' { export * from '@utils/errors'; }
+declare module './config.js' { export * from '@shared/config'; }
+declare module './PreferencesService.js' { export * from '@services/PreferencesService'; }
+declare module './RegistrationService.js' { export * from '@services/RegistrationService'; }
+
+// Additional declarations for consumer paths
+declare module '../../utils/logger' { export * from '@utils/logger'; }
+declare module '../../utils/database' { export * from '@utils/database'; }
+declare module '../../utils/errors' { export * from '@utils/errors'; }
+declare module '../../config' { export * from '@shared/config'; }
+declare module '../../services/PreferencesService' { export * from '@services/PreferencesService'; }
+declare module '../../services/RegistrationService' { export * from '@services/RegistrationService'; } 

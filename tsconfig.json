@@ -29,7 +29,9 @@
       "@shared/*": ["src/shared/*"],
       "@config/*": ["src/config/*"],
       "@utils/*": ["src/utils/*"],
-      "@services/*": ["src/services/*"]
+      "@services/*": ["src/services/*"],
+      "../*": ["src/*"],
+      "./*": ["src/*"]
     },
     "typeRoots": [
       "./node_modules/@types",
@@ -38,7 +40,8 @@
     "types": [
       "node",
       "express",
-      "jest"
+      "jest",
+      "express-rate-limit"
     ]
   },
   "include": [
