@@ -4,7 +4,7 @@ import { WebhookService } from '../services/WebhookService';
 
 const logger = createLogger('webhookConsumer');
 
-class WebhookConsumer {
+export class WebhookConsumer {
   private connection: RabbitMQConnection;
   private webhookService: WebhookService;
 
@@ -111,16 +111,18 @@ class WebhookConsumer {
   }
 }
 
-// Create and start the consumer
-const consumer = new WebhookConsumer();
-consumer.start().catch((error) => {
-  console.error('DEBUG - Failed to start consumer:', error); // Direct console log for debugging
-  
-  logger.error('Failed to start webhook consumer:', {
-    error,
-    stack: error instanceof Error ? error.stack : undefined,
-    errorMessage: error instanceof Error ? error.message : 'Unknown error',
-    errorType: error instanceof Error ? error.constructor.name : typeof error
+// Only create and start the consumer if this file is being run directly
+if (require.main === module) {
+  const consumer = new WebhookConsumer();
+  consumer.start().catch((error) => {
+    console.error('DEBUG - Failed to start consumer:', error); // Direct console log for debugging
+    
+    logger.error('Failed to start webhook consumer:', {
+      error,
+      stack: error instanceof Error ? error.stack : undefined,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorType: error instanceof Error ? error.constructor.name : typeof error
+    });
+    process.exit(1);
   });
-  process.exit(1);
-}); 
+} 

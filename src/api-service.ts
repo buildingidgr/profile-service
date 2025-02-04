@@ -9,7 +9,7 @@ import { profileRoutes } from './routes/profileRoutes';
 import { validateToken } from './middleware/validateToken';
 import { errorHandler } from './middleware/errorHandler';
 import { connectToDatabase } from './utils/database';
-import './consumers/webhookConsumer';
+import { WebhookConsumer } from './consumers/webhookConsumer';
 import './consumers/opportunityConsumer';
 
 // Augment the Express Request interface
@@ -56,11 +56,21 @@ app.get('/health', (_req: Request, res: express.Response) => {
 
 async function startServer() {
   try {
-    // Connect to database
+    // Connect to database first
+    logger.info('Connecting to database...');
     await connectToDatabase();
+    logger.info('Database connection established');
 
     // Connect to RabbitMQ
+    logger.info('Connecting to RabbitMQ...');
     await rabbitmq.connect();
+    logger.info('RabbitMQ connection established');
+
+    // Initialize webhook consumer
+    logger.info('Initializing webhook consumer...');
+    const webhookConsumer = new WebhookConsumer();
+    await webhookConsumer.start();
+    logger.info('Webhook consumer initialized');
 
     // API routes with JWT validation
     app.use('/api/profiles', validateToken, profileRoutes);
@@ -76,7 +86,11 @@ async function startServer() {
 
     return server;
   } catch (error) {
-    logger.error('Failed to start server:', error);
+    logger.error('Failed to start server:', {
+      error,
+      stack: error instanceof Error ? error.stack : undefined,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error'
+    });
     process.exit(1);
   }
 }
