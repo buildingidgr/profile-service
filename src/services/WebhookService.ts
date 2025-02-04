@@ -21,7 +21,15 @@ export class WebhookService {
       logger.info(`[${eventId}] Started processing webhook event`, {
         eventId,
         eventType,
-        data: eventData
+        data: eventData,
+        eventStructure: {
+          hasType: !!event.type,
+          hasEventType: !!event.eventType,
+          hasData: !!event.data,
+          hasNestedData: !!event.data?.data,
+          extractedType: eventType,
+          extractedId: eventId
+        }
       });
 
       switch (eventType) {
@@ -37,7 +45,8 @@ export class WebhookService {
         default:
           logger.warn(`[${eventId}] Unhandled webhook event type`, {
             eventId,
-            eventType
+            eventType,
+            availableTypes: ['user.created', 'user.updated', 'user.deleted']
           });
       }
 
@@ -51,7 +60,8 @@ export class WebhookService {
         eventId,
         eventType,
         data: eventData,
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
     }
@@ -62,11 +72,24 @@ export class WebhookService {
     try {
       logger.info(`[${userId}] Processing user.created event`, {
         userId,
-        data
+        data,
+        dataStructure: {
+          hasId: !!data.id,
+          hasEmailAddresses: !!data.email_addresses,
+          emailAddressesCount: data.email_addresses?.length,
+          hasPrimaryEmailId: !!data.primary_email_address_id,
+          primaryEmailId: data.primary_email_address_id
+        }
       });
 
       const { id, email_addresses, first_name, last_name } = data;
       const primaryEmail = email_addresses?.find((e: any) => e.id === data.primary_email_address_id);
+
+      logger.info(`[${userId}] Found primary email`, {
+        userId,
+        primaryEmail,
+        allEmails: email_addresses
+      });
 
       // Check if profile already exists
       const existingProfile = await prisma.profile.findUnique({
@@ -82,6 +105,17 @@ export class WebhookService {
       }
 
       // Create new profile using Prisma
+      logger.info(`[${userId}] Creating new profile`, {
+        userId,
+        profileData: {
+          clerkId: id,
+          email: primaryEmail?.email_address,
+          firstName: first_name,
+          lastName: last_name,
+          emailVerified: primaryEmail?.verification?.status === 'verified'
+        }
+      });
+
       const newProfile = await prisma.profile.create({
         data: {
           clerkId: id,
@@ -105,7 +139,8 @@ export class WebhookService {
         error,
         userId,
         data,
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
     }
@@ -141,7 +176,8 @@ export class WebhookService {
         error,
         userId,
         data,
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
     }
@@ -175,7 +211,8 @@ export class WebhookService {
         error,
         userId,
         data,
-        stack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
       throw error;
     }

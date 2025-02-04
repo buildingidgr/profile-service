@@ -30,26 +30,54 @@ class WebhookConsumer {
         }
         
         try {
-          const content = JSON.parse(msg.content.toString());
-          logger.info('Processing webhook event:', content);
+          const rawContent = msg.content.toString();
+          logger.info('Received raw message from queue:', {
+            content: rawContent,
+            messageId: msg.properties.messageId
+          });
+
+          const content = JSON.parse(rawContent);
+          logger.info('Parsed webhook event:', {
+            eventType: content.eventType,
+            userId: content.data?.data?.id,
+            email: content.data?.data?.email_addresses?.[0]?.email_address
+          });
+
+          // Log the structure of the message
+          logger.info('Message structure:', {
+            hasEventType: !!content.eventType,
+            hasData: !!content.data,
+            hasNestedData: !!content.data?.data,
+            dataKeys: content.data ? Object.keys(content.data) : [],
+            nestedDataKeys: content.data?.data ? Object.keys(content.data.data) : []
+          });
 
           await this.webhookService.processWebhookEvent(content);
           
           channel.ack(msg);
-          logger.info('Successfully processed webhook event');
+          logger.info('Successfully processed and acknowledged webhook event', {
+            eventType: content.eventType,
+            userId: content.data?.data?.id
+          });
         } catch (error) {
           logger.error('Error processing webhook event:', {
             error,
             content: msg.content.toString(),
-            stack: error instanceof Error ? error.stack : undefined
+            stack: error instanceof Error ? error.stack : undefined,
+            errorMessage: error instanceof Error ? error.message : 'Unknown error'
           });
           
           // Nack the message and don't requeue it if we can't process it
           channel.nack(msg, false, false);
+          logger.info('Nacked webhook event due to processing error');
         }
       });
     } catch (error) {
-      logger.error('Error starting webhook consumer:', error);
+      logger.error('Error starting webhook consumer:', {
+        error,
+        stack: error instanceof Error ? error.stack : undefined,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      });
       throw error;
     }
   }
@@ -58,6 +86,10 @@ class WebhookConsumer {
 // Create and start the consumer
 const consumer = new WebhookConsumer();
 consumer.start().catch((error) => {
-  logger.error('Failed to start webhook consumer:', error);
+  logger.error('Failed to start webhook consumer:', {
+    error,
+    stack: error instanceof Error ? error.stack : undefined,
+    errorMessage: error instanceof Error ? error.message : 'Unknown error'
+  });
   process.exit(1);
 }); 
