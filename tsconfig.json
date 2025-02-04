@@ -30,19 +30,24 @@
       "@config/*": ["src/config/*"],
       "@utils/*": ["src/utils/*"],
       "@services/*": ["src/services/*"],
-      "../utils/*": ["src/utils/*"],
-      "../config/*": ["src/config/*"],
-      "../services/*": ["src/services/*"],
-      "./logger": ["src/utils/logger"],
-      "./config": ["src/config"],
-      "./database": ["src/utils/database"],
-      "./PreferencesService": ["src/services/PreferencesService"],
-      "../utils/logger": ["src/utils/logger"],
-      "../utils/errors": ["src/utils/errors"],
-      "../utils/database": ["src/utils/database"]
+      "../utils/*": ["src/utils/*", "src/api/utils/*", "src/consumer/utils/*", "src/shared/utils/*"],
+      "../config/*": ["src/config/*", "src/api/config/*", "src/consumer/config/*", "src/shared/config/*"],
+      "../services/*": ["src/services/*", "src/api/services/*", "src/consumer/services/*"],
+      "./logger": ["src/utils/logger", "src/api/utils/logger", "src/consumer/utils/logger"],
+      "./config": ["src/config", "src/api/config", "src/consumer/config"],
+      "./database": ["src/utils/database", "src/api/utils/database", "src/consumer/utils/database"],
+      "./PreferencesService": ["src/services/PreferencesService", "src/api/services/PreferencesService", "src/consumer/services/PreferencesService"],
+      "./RegistrationService": ["src/services/RegistrationService", "src/api/services/RegistrationService"],
+      "../utils/logger": ["src/utils/logger", "src/api/utils/logger", "src/consumer/utils/logger", "src/shared/utils/logger"],
+      "../utils/errors": ["src/utils/errors", "src/api/utils/errors", "src/consumer/utils/errors", "src/shared/utils/errors"],
+      "../utils/database": ["src/utils/database", "src/api/utils/database", "src/consumer/utils/database", "src/shared/utils/database"]
     }
   },
-  "include": ["src/**/*", "src/@types/**/*"],
+  "include": [
+    "src/**/*",
+    "src/@types/**/*",
+    "src/@types/js-modules/**/*.d.ts"
+  ],
   "exclude": ["node_modules", "dist"]
 }
 
