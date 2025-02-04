@@ -29,7 +29,17 @@
       "@shared/*": ["src/shared/*"],
       "@config/*": ["src/config/*"],
       "@utils/*": ["src/utils/*"],
-      "@services/*": ["src/services/*"]
+      "@services/*": ["src/services/*"],
+      "../utils/*": ["src/utils/*"],
+      "../config/*": ["src/config/*"],
+      "../services/*": ["src/services/*"],
+      "./logger": ["src/utils/logger"],
+      "./config": ["src/config"],
+      "./database": ["src/utils/database"],
+      "./PreferencesService": ["src/services/PreferencesService"],
+      "../utils/logger": ["src/utils/logger"],
+      "../utils/errors": ["src/utils/errors"],
+      "../utils/database": ["src/utils/database"]
     }
   },
   "include": ["src/**/*", "src/@types/**/*"],
