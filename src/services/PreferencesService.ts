@@ -2,10 +2,9 @@ import { MongoClient } from 'mongodb';
 import { createLogger } from '../utils/logger';
 import { BadRequestError } from '../utils/errors';
 import { ObjectId } from 'mongodb';
-import { config } from '../config';
+import { mongoClient } from '../utils/database';
 
 const logger = createLogger('PreferencesService');
-const mongoClient = new MongoClient(process.env.DATABASE_URL || config.databaseUrl);
 
 export interface UserPreferences {
   id: string;
@@ -53,29 +52,13 @@ const DEFAULT_PREFERENCES: Partial<UserPreferences> = {
 
 export class PreferencesService {
   private db;
-  private isConnected = false;
 
   constructor() {
     this.db = mongoClient.db();
   }
 
-  private async ensureConnection() {
-    if (!this.isConnected) {
-      try {
-        await mongoClient.connect();
-        this.isConnected = true;
-        logger.info('Connected to MongoDB');
-      } catch (error) {
-        logger.error('Failed to connect to MongoDB:', error);
-        throw new Error('Database connection failed');
-      }
-    }
-  }
-
   async getPreferences(clerkId: string): Promise<UserPreferences> {
     try {
-      await this.ensureConnection();
-
       const preferencesCollection = this.db.collection('UserPreferences');
       const preferences = await preferencesCollection.findOne({ clerkId });
 
@@ -94,7 +77,7 @@ export class PreferencesService {
         updatedAt: preferences.updatedAt
       } as UserPreferences;
     } catch (error) {
-      logger.error('Error getting preferences', { error, clerkId });
+      logger.error('Error getting preferences', { error, clerkId, stack: error instanceof Error ? error.stack : undefined });
       if (error instanceof Error) {
         throw new BadRequestError(`Failed to get preferences: ${error.message}`);
       }
@@ -104,8 +87,6 @@ export class PreferencesService {
 
   async updatePreferences(clerkId: string, data: Partial<UserPreferences['preferences']>): Promise<UserPreferences> {
     try {
-      await this.ensureConnection();
-
       const preferencesCollection = this.db.collection('UserPreferences');
       const currentPrefs = await preferencesCollection.findOne({ clerkId });
 
@@ -125,6 +106,9 @@ export class PreferencesService {
           $set: { 
             ...updatedPreferences,
             updatedAt: new Date().toISOString()
+          },
+          $setOnInsert: {
+            createdAt: new Date().toISOString()
           }
         },
         { 
@@ -146,7 +130,7 @@ export class PreferencesService {
         updatedAt: result.value.updatedAt
       } as UserPreferences;
     } catch (error) {
-      logger.error('Error updating preferences', { error, clerkId });
+      logger.error('Error updating preferences', { error, clerkId, stack: error instanceof Error ? error.stack : undefined });
       if (error instanceof Error) {
         throw new BadRequestError(`Failed to update preferences: ${error.message}`);
       }
@@ -156,8 +140,6 @@ export class PreferencesService {
 
   public async createDefaultPreferences(clerkId: string): Promise<UserPreferences> {
     try {
-      await this.ensureConnection();
-
       const preferencesCollection = this.db.collection('UserPreferences');
       const now = new Date().toISOString();
       const id = new ObjectId().toString();
@@ -182,7 +164,7 @@ export class PreferencesService {
         updatedAt: now
       } as UserPreferences;
     } catch (error) {
-      logger.error('Error creating default preferences', { error, clerkId });
+      logger.error('Error creating default preferences', { error, clerkId, stack: error instanceof Error ? error.stack : undefined });
       if (error instanceof Error) {
         throw new BadRequestError(`Failed to create preferences: ${error.message}`);
       }

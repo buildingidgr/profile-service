@@ -2,9 +2,9 @@ import { Request, Response } from 'express';
 import { ProfileService } from '../services/ProfileService';
 import authService from '../services/authService';
 import { createLogger } from '../utils/logger';
-import { prisma } from '../utils/database';
+import { prisma, mongoClient } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
-import { MongoClient, ObjectId } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import { config } from '../config';
 import { safeProfileUpdate } from '../utils/database';
 import { PreferencesService } from '../services/PreferencesService';
@@ -23,25 +23,11 @@ const logger = createLogger('ProfileController');
 
 export class ProfileController {
   private profileService: ProfileService;
-  private static mongoClient: MongoClient | null = null;
+  private db;
 
   constructor() {
     this.profileService = new ProfileService();
-  }
-
-  private static async initMongoClient(): Promise<MongoClient> {
-    if (!this.mongoClient) {
-      this.mongoClient = new MongoClient(config.databaseUrl);
-      await this.mongoClient.connect();
-    }
-    return this.mongoClient;
-  }
-
-  private static async closeMongoClient() {
-    if (this.mongoClient) {
-      await this.mongoClient.close();
-      this.mongoClient = null;
-    }
+    this.db = mongoClient.db();
   }
 
   async getProfile(req: Request, res: Response) {
@@ -155,7 +141,11 @@ export class ProfileController {
 
       return res.json(preferences);
     } catch (error) {
-      logger.error('Error getting preferences:', { error, clerkId: req.user?.sub || req.userId });
+      logger.error('Error getting preferences:', { 
+        error, 
+        clerkId: req.user?.sub || req.userId,
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       
       if (error instanceof BadRequestError) {
         return res.status(400).json({ error: error.message });
@@ -198,14 +188,21 @@ export class ProfileController {
 
         return res.json(preferences);
       } catch (parseError: any) {
-        logger.error('Error parsing preferences data', { error: parseError });
+        logger.error('Error parsing preferences data', { 
+          error: parseError,
+          stack: parseError.stack 
+        });
         return res.status(400).json({ 
           error: 'Invalid JSON format in request body.',
           details: parseError.message 
         });
       }
     } catch (error) {
-      logger.error('Error updating preferences:', { error, clerkId: req.user?.sub || req.userId });
+      logger.error('Error updating preferences:', { 
+        error, 
+        clerkId: req.user?.sub || req.userId,
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       
       if (error instanceof BadRequestError) {
         return res.status(400).json({ error: error.message });
@@ -221,18 +218,13 @@ export class ProfileController {
 
   async getProfessionalInfo(req: Request, res: Response) {
     try {
-      // Use the authenticated user's ID from the token
       const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Connect to MongoDB directly
-      const mongoClient = await ProfileController.initMongoClient();
-      const database = mongoClient.db();
-      const professionalInfoCollection = database.collection('ProfessionalInfo');
-      
+      const professionalInfoCollection = this.db.collection('ProfessionalInfo');
       const professionalInfo = await professionalInfoCollection.findOne({ clerkId });
 
       if (!professionalInfo) {
@@ -241,10 +233,12 @@ export class ProfileController {
 
       return res.json(professionalInfo);
     } catch (error) {
-      logger.error('Error getting professional info:', error);
+      logger.error('Error getting professional info:', { 
+        error, 
+        clerkId: req.user?.sub || req.userId,
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       return res.status(500).json({ error: 'Internal server error' });
-    } finally {
-      await ProfileController.closeMongoClient();
     }
   }
 
@@ -259,9 +253,7 @@ export class ProfileController {
       }
 
       // Connect to MongoDB directly
-      const mongoClient = await ProfileController.initMongoClient();
-      const database = mongoClient.db();
-      const professionalInfoCollection = database.collection('ProfessionalInfo');
+      const professionalInfoCollection = this.db.collection('ProfessionalInfo');
       
       // Find existing document first to perform partial update
       const existingDoc = await professionalInfoCollection.findOne({ clerkId });
@@ -310,8 +302,6 @@ export class ProfileController {
     } catch (error) {
       logger.error('Error updating professional info:', error);
       return res.status(500).json({ error: 'Internal server error' });
-    } finally {
-      await ProfileController.closeMongoClient();
     }
   }
 
