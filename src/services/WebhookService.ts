@@ -1,6 +1,5 @@
 import { createLogger } from '../utils/logger';
-import { mongoClient } from '../utils/database';
-import { ObjectId } from 'mongodb';
+import { prisma } from '../utils/database';
 import { PreferencesService } from './PreferencesService';
 
 const logger = createLogger('WebhookService');
@@ -11,12 +10,6 @@ interface WebhookEvent {
 }
 
 export class WebhookService {
-  private db;
-
-  constructor() {
-    this.db = mongoClient.db();
-  }
-
   async processWebhookEvent(event: WebhookEvent): Promise<void> {
     const eventId = event.data?.id || 'unknown';
     try {
@@ -71,8 +64,9 @@ export class WebhookService {
       const primaryEmail = email_addresses?.find((e: any) => e.id === data.primary_email_address_id);
 
       // Check if profile already exists
-      const profileCollection = this.db.collection('Profile');
-      const existingProfile = await profileCollection.findOne({ clerkId: id });
+      const existingProfile = await prisma.profile.findUnique({
+        where: { clerkId: id }
+      });
 
       if (existingProfile) {
         logger.warn(`[${userId}] Profile already exists for user.created event`, {
@@ -82,20 +76,16 @@ export class WebhookService {
         return;
       }
 
-      // Create new profile
-      const now = new Date().toISOString();
-      const newProfile = {
-        _id: new ObjectId(),
-        clerkId: id,
-        email: primaryEmail?.email_address,
-        firstName: first_name,
-        lastName: last_name,
-        emailVerified: primaryEmail?.verification?.status === 'verified',
-        createdAt: now,
-        updatedAt: now
-      };
-
-      await profileCollection.insertOne(newProfile);
+      // Create new profile using Prisma
+      const newProfile = await prisma.profile.create({
+        data: {
+          clerkId: id,
+          email: primaryEmail?.email_address,
+          firstName: first_name,
+          lastName: last_name,
+          emailVerified: primaryEmail?.verification?.status === 'verified'
+        }
+      });
 
       // Create default preferences
       const preferencesService = new PreferencesService();
@@ -103,7 +93,7 @@ export class WebhookService {
 
       logger.info(`[${userId}] Successfully created profile and preferences`, {
         userId,
-        profile: { ...newProfile, _id: newProfile._id.toString() }
+        profile: newProfile
       });
     } catch (error) {
       logger.error(`[${userId}] Error handling user.created event:`, {
@@ -127,29 +117,19 @@ export class WebhookService {
       const { id, email_addresses, first_name, last_name } = data;
       const primaryEmail = email_addresses?.find((e: any) => e.id === data.primary_email_address_id);
 
-      const profileCollection = this.db.collection('Profile');
-      const result = await profileCollection.findOneAndUpdate(
-        { clerkId: id },
-        {
-          $set: {
-            email: primaryEmail?.email_address,
-            firstName: first_name,
-            lastName: last_name,
-            emailVerified: primaryEmail?.verification?.status === 'verified',
-            updatedAt: new Date().toISOString()
-          }
-        },
-        { returnDocument: 'after' }
-      );
-
-      if (!result.value) {
-        logger.warn(`[${userId}] No profile found to update`, { userId });
-        return;
-      }
+      const updatedProfile = await prisma.profile.update({
+        where: { clerkId: id },
+        data: {
+          email: primaryEmail?.email_address,
+          firstName: first_name,
+          lastName: last_name,
+          emailVerified: primaryEmail?.verification?.status === 'verified'
+        }
+      });
 
       logger.info(`[${userId}] Successfully updated profile`, {
         userId,
-        updatedProfile: { ...result.value, _id: result.value._id.toString() }
+        updatedProfile
       });
     } catch (error) {
       logger.error(`[${userId}] Error handling user.updated event:`, {
@@ -170,19 +150,20 @@ export class WebhookService {
         data
       });
 
-      const profileCollection = this.db.collection('Profile');
-      const preferencesCollection = this.db.collection('UserPreferences');
-
-      // Delete both profile and preferences
-      const [profileResult, preferencesResult] = await Promise.all([
-        profileCollection.deleteOne({ clerkId: userId }),
-        preferencesCollection.deleteOne({ clerkId: userId })
+      // Delete profile and preferences using Prisma
+      const [deletedProfile, deletedPreferences] = await Promise.all([
+        prisma.profile.delete({
+          where: { clerkId: userId }
+        }),
+        prisma.userPreferences.delete({
+          where: { clerkId: userId }
+        })
       ]);
 
-      logger.info(`[${userId}] Deletion results`, {
+      logger.info(`[${userId}] Successfully deleted profile and preferences`, {
         userId,
-        profileDeleted: profileResult.deletedCount > 0,
-        preferencesDeleted: preferencesResult.deletedCount > 0
+        deletedProfile,
+        deletedPreferences
       });
     } catch (error) {
       logger.error(`[${userId}] Error handling user.deleted event:`, {
