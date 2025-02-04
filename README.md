@@ -701,3 +701,9 @@ async updateProfile(req: Request, res: Response) {
 - Direct database operations
 - Reduced transaction complexity
 
+### Testing
+
+#### Unit Testing
+
+
+
