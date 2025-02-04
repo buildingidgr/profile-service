@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { config } from '../config';
-import { createLogger } from '../utils/logger';
+import { config } from '@shared/config';
+import { createLogger } from '@shared/utils/logger';
 
 // Extend Express Request type to include user
 declare global {

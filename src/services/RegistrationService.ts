@@ -1,10 +1,11 @@
-import { createLogger } from '../utils/logger';
+import { createLogger } from '@shared/utils/logger';
+import { BadRequestError } from '@shared/utils/errors';
+import { mongoClient } from '@shared/utils/database';
 import { MongoClient, ObjectId } from 'mongodb';
 
 const logger = createLogger('RegistrationService');
 
 // MongoDB connection
-const mongoClient = new MongoClient(process.env.DATABASE_URL || '');
 const db = mongoClient.db();
 
 export class RegistrationService {

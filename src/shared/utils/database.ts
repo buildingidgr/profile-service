@@ -1,48 +1,73 @@
-import { PrismaClient, Prisma } from '@prisma/client'
-import { createLogger } from './logger'
-import { config } from '../config'
-import { MongoClient, Document, ObjectId } from 'mongodb';
+import { MongoClient } from 'mongodb';
+import { PrismaClient } from '@prisma/client';
+import { config } from '@shared/config';
+import { createLogger } from './logger';
+import { Document, ObjectId } from 'mongodb';
 
 const logger = createLogger('database');
 
-// Deep merge utility function
-function deepMerge(target: any, source: any): any {
-  if (typeof source !== 'object' || source === null) {
-    return source;
-  }
-
-  if (typeof target !== 'object' || target === null) {
-    return deepMergeObjects({}, source);
-  }
-
-  return deepMergeObjects(target, source);
-}
-
-function deepMergeObjects(target: any, source: any): any {
-  const result = { ...target };
-
-  Object.keys(source).forEach(key => {
-    if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-      if (target[key] && typeof target[key] === 'object' && !Array.isArray(target[key])) {
-        result[key] = deepMergeObjects(target[key], source[key]);
-      } else {
-        result[key] = deepMergeObjects({}, source[key]);
-      }
-    } else {
-      result[key] = source[key];
+// Initialize Prisma client
+export const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL
     }
-  });
+  }
+});
 
-  return result;
+// Initialize MongoDB client
+let mongoClient: MongoClient;
+
+if (!global.mongoClient) {
+  mongoClient = new MongoClient(config.mongodb.uri);
+  global.mongoClient = mongoClient;
+} else {
+  mongoClient = global.mongoClient;
 }
 
+export { mongoClient };
+export const db = mongoClient.db();
+
+// Type-safe deep merge utility
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+export function deepMerge<T extends Record<string, any>>(target: T, source: DeepPartial<T>): T {
+  const output = { ...target };
+  
+  for (const key in source) {
+    if (source.hasOwnProperty(key)) {
+      const sourceValue = source[key];
+      const targetValue = target[key];
+
+      if (isObject(sourceValue) && isObject(targetValue)) {
+        output[key] = deepMerge(targetValue, sourceValue as DeepPartial<typeof targetValue>);
+      } else if (sourceValue !== undefined) {
+        output[key] = sourceValue as T[typeof key];
+      }
+    }
+  }
+
+  return output;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+// Add global type declarations
 declare global {
-  var prisma: PrismaClient | undefined
-  var mongoClient: MongoClient | undefined
+  var prisma: PrismaClient | undefined;
+  var mongoClient: MongoClient | undefined;
+}
+
+if (process.env.NODE_ENV !== 'production') {
+  global.prisma = prisma;
 }
 
 // Configure Prisma client with non-transactional settings
-export const prisma = new PrismaClient({
+export const prismaClient = new PrismaClient({
   datasources: {
     db: {
       url: process.env.DATABASE_URL || config.databaseUrl
@@ -53,21 +78,25 @@ export const prisma = new PrismaClient({
     : ['error']
 });
 
-export const mongoClient = global.mongoClient || new MongoClient(config.databaseUrl);
-
-if (process.env.NODE_ENV !== 'production') {
-  global.prisma = prisma
-  global.mongoClient = mongoClient
-}
-
 export async function connectToDatabase() {
   try {
-    await prisma.$connect()
-    await mongoClient.connect()
-    logger.info('Connected to MongoDB database')
+    await prismaClient.$connect();
+    await mongoClient.connect();
+    logger.info('Connected to MongoDB database');
   } catch (error) {
-    logger.error('Failed to connect to MongoDB database', error)
-    process.exit(1)
+    logger.error('Error connecting to database:', error);
+    throw error;
+  }
+}
+
+export async function disconnectFromDatabase() {
+  try {
+    await prismaClient.$disconnect();
+    await mongoClient.close();
+    logger.info('Disconnected from MongoDB database');
+  } catch (error) {
+    logger.error('Error disconnecting from database:', error);
+    throw error;
   }
 }
 
@@ -92,7 +121,7 @@ interface ProfileDocument extends Document {
 export async function safeProfileUpdate(clerkId: string, data: any) {
   try {
     // Get the current profile first
-    const currentProfile = await prisma.profile.findUnique({
+    const currentProfile = await prismaClient.profile.findUnique({
       where: { clerkId }
     });
 
@@ -109,7 +138,7 @@ export async function safeProfileUpdate(clerkId: string, data: any) {
     }, {});
 
     // Attempt direct Prisma update without transaction
-    const result = await prisma.profile.update({
+    const result = await prismaClient.profile.update({
       where: { clerkId },
       data: {
         ...updateData,
@@ -185,7 +214,7 @@ export async function safeProfileUpdate(clerkId: string, data: any) {
 }
 
 // Optional: Add a global error handler for Prisma operations
-prisma.$use(async (params, next) => {
+prismaClient.$use(async (params, next) => {
   try {
     return await next(params);
   } catch (error: any) {

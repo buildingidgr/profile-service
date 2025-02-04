@@ -1,8 +1,8 @@
 import { MongoClient } from 'mongodb';
-import { createLogger } from '../utils/logger';
-import { BadRequestError } from '../utils/errors';
+import { createLogger } from '@shared/utils/logger';
+import { BadRequestError } from '@shared/utils/errors';
 import { ObjectId } from 'mongodb';
-import { mongoClient } from '../utils/database';
+import { mongoClient } from '@shared/utils/database';
 
 const logger = createLogger('PreferencesService');
 
