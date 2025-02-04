@@ -26,17 +26,9 @@
       "@/*": ["src/*"],
       "@api/*": ["src/api/*"],
       "@shared/*": ["src/shared/*"],
-      "@config": ["src/shared/config"],
-      "@utils/*": ["src/shared/utils/*"],
-      "@services/*": ["src/services/*"],
-      "../utils/*": ["src/shared/utils/*"],
-      "../config": ["src/shared/config"],
-      "../services/*": ["src/services/*"],
-      "./logger": ["src/shared/utils/logger"],
-      "./database": ["src/shared/utils/database"],
-      "./errors": ["src/shared/utils/errors"],
-      "./config": ["src/shared/config"],
-      "./PreferencesService": ["src/services/PreferencesService"]
+      "@config/*": ["src/config/*"],
+      "@utils/*": ["src/utils/*"],
+      "@services/*": ["src/services/*"]
     },
     "typeRoots": [
       "./node_modules/@types",
@@ -49,8 +41,7 @@
     ]
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.d.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",

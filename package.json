@@ -5,12 +5,12 @@
   "main": "dist/api-service.js",
   "types": "src/@types/**/*.d.ts",
   "_moduleAliases": {
-    "@": "src",
-    "@api": "src/api",
-    "@shared": "src/shared",
-    "@config": "src/config",
-    "@utils": "src/utils",
-    "@services": "src/services"
+    "@": "./dist",
+    "@api": "./dist/api",
+    "@shared": "./dist/shared",
+    "@config": "./dist/config",
+    "@utils": "./dist/utils",
+    "@services": "./dist/services"
   },
   "scripts": {
     "clean": "rimraf dist",

@@ -1,10 +1,10 @@
-import { createLogger } from '@shared/utils/logger';
+import { createLogger } from '../shared/utils/logger';
 import { MongoClient, ObjectId } from 'mongodb';
 import crypto from 'crypto';
 import { RedisService } from './RedisService';
-import { BadRequestError } from '@shared/utils/errors';
-import { PreferencesService } from '@services/PreferencesService';
-import { mongoClient } from '@shared/utils/database';
+import { BadRequestError } from '../shared/utils/errors';
+import { PreferencesService } from './PreferencesService';
+import { mongoClient } from '../shared/utils/database';
 
 const logger = createLogger('ProfileService');
 

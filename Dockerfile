@@ -21,11 +21,11 @@ COPY . .
 # Generate Prisma Client
 RUN npm run prisma:generate
 
-# Create necessary directories
-RUN mkdir -p src/shared/utils src/shared/config
-
 # Build TypeScript
 RUN npm run build
+
+# Ensure proper file structure for module aliases
+RUN mkdir -p dist/shared/utils dist/services dist/api
 
 # Expose the port from environment variable
 ENV PORT=3000

@@ -4,13 +4,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProfileService = void 0;
-const logger_1 = require("@shared/utils/logger");
+const logger_1 = require("../shared/utils/logger");
 const mongodb_1 = require("mongodb");
 const crypto_1 = __importDefault(require("crypto"));
 const RedisService_1 = require("./RedisService");
-const errors_1 = require("@shared/utils/errors");
-const PreferencesService_1 = require("@services/PreferencesService");
-const database_1 = require("@shared/utils/database");
+const errors_1 = require("../shared/utils/errors");
+const PreferencesService_1 = require("./PreferencesService");
+const database_1 = require("../shared/utils/database");
 const logger = (0, logger_1.createLogger)('ProfileService');
 const db = database_1.mongoClient.db();
 const DEFAULT_PREFERENCES = {

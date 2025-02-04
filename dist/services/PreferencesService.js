@@ -1,37 +1,35 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PreferencesService = void 0;
-const mongodb_1 = require("mongodb");
-const logger_1 = require("../utils/logger");
-const errors_1 = require("../utils/errors");
+const logger_1 = require("../shared/utils/logger");
+const errors_1 = require("../shared/utils/errors");
+const database_1 = require("../shared/utils/database");
 const logger = (0, logger_1.createLogger)('PreferencesService');
-const mongoClient = new mongodb_1.MongoClient(process.env.DATABASE_URL || '');
-const db = mongoClient.db();
 const DEFAULT_PREFERENCES = {
     dashboard: {
-        timezone: "Europe/Athens",
-        language: "el-GR"
+        timezone: 'UTC',
+        language: 'en'
     },
     notifications: {
         email: {
-            marketing: false,
-            updates: false,
+            marketing: true,
+            updates: true,
             security: true,
-            newsletters: false,
-            productAnnouncements: false
+            newsletters: true,
+            productAnnouncements: true
         }
     },
     display: {
-        theme: "light"
+        theme: 'system'
     }
 };
 class PreferencesService {
     async getPreferences(clerkId) {
         try {
-            const preferencesCollection = db.collection('UserPreferences');
-            const preferences = await preferencesCollection.findOne({ clerkId });
+            const preferences = await database_1.prisma.userPreferences.findUnique({
+                where: { clerkId }
+            });
             if (!preferences) {
-                // If no preferences exist, create default ones
                 await this.createDefaultPreferences(clerkId);
                 return DEFAULT_PREFERENCES;
             }
@@ -44,26 +42,25 @@ class PreferencesService {
     }
     async updatePreferences(clerkId, data) {
         try {
-            const preferencesCollection = db.collection('UserPreferences');
-            const currentPrefs = await preferencesCollection.findOne({ clerkId });
+            const currentPreferences = await database_1.prisma.userPreferences.findUnique({
+                where: { clerkId }
+            });
             const updatedPreferences = {
                 ...DEFAULT_PREFERENCES,
-                ...(currentPrefs?.preferences || {}),
+                ...((currentPreferences === null || currentPreferences === void 0 ? void 0 : currentPreferences.preferences) || {}),
                 ...data
             };
-            const result = await preferencesCollection.findOneAndUpdate({ clerkId }, {
-                $set: {
-                    preferences: updatedPreferences,
-                    updatedAt: new Date()
+            const result = await database_1.prisma.userPreferences.upsert({
+                where: { clerkId },
+                create: {
+                    clerkId,
+                    preferences: updatedPreferences
+                },
+                update: {
+                    preferences: updatedPreferences
                 }
-            }, {
-                upsert: true,
-                returnDocument: 'after'
             });
-            if (!result.value) {
-                throw new errors_1.BadRequestError('Failed to update preferences');
-            }
-            return result.value.preferences;
+            return result.preferences;
         }
         catch (error) {
             logger.error('Error updating preferences', { error, clerkId });
@@ -71,13 +68,19 @@ class PreferencesService {
         }
     }
     async createDefaultPreferences(clerkId) {
-        const preferencesCollection = db.collection('UserPreferences');
-        await preferencesCollection.insertOne({
-            clerkId,
-            preferences: DEFAULT_PREFERENCES,
-            createdAt: new Date(),
-            updatedAt: new Date()
-        });
+        try {
+            await database_1.prisma.userPreferences.create({
+                data: {
+                    clerkId,
+                    preferences: DEFAULT_PREFERENCES
+                }
+            });
+        }
+        catch (error) {
+            logger.error('Error creating default preferences', { error, clerkId });
+            throw new errors_1.BadRequestError('Failed to create default preferences');
+        }
     }
 }
 exports.PreferencesService = PreferencesService;
+//# sourceMappingURL=PreferencesService.js.map
