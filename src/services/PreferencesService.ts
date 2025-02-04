@@ -45,7 +45,10 @@ export class PreferencesService {
   async getPreferences(clerkId: string): Promise<UserPreferences> {
     try {
       const preferences = await prisma.userPreferences.findUnique({
-        where: { clerkId }
+        where: { clerkId },
+        select: {
+          preferences: true
+        }
       });
 
       if (!preferences) {
@@ -56,6 +59,12 @@ export class PreferencesService {
       return preferences.preferences as unknown as UserPreferences;
     } catch (error) {
       logger.error('Error getting preferences', { error, clerkId });
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        // Handle specific Prisma errors
+        if (error.code === 'P2002') {
+          throw new BadRequestError('Preferences already exist for this user');
+        }
+      }
       throw new BadRequestError('Failed to get preferences');
     }
   }
@@ -63,7 +72,10 @@ export class PreferencesService {
   async updatePreferences(clerkId: string, data: Partial<UserPreferences>): Promise<UserPreferences> {
     try {
       const currentPreferences = await prisma.userPreferences.findUnique({
-        where: { clerkId }
+        where: { clerkId },
+        select: {
+          preferences: true
+        }
       });
 
       const updatedPreferences = {
@@ -80,12 +92,20 @@ export class PreferencesService {
         },
         update: {
           preferences: updatedPreferences as unknown as Prisma.InputJsonValue
+        },
+        select: {
+          preferences: true
         }
       });
 
       return result.preferences as unknown as UserPreferences;
     } catch (error) {
       logger.error('Error updating preferences', { error, clerkId });
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new BadRequestError('Preferences already exist for this user');
+        }
+      }
       throw new BadRequestError('Failed to update preferences');
     }
   }
@@ -100,6 +120,12 @@ export class PreferencesService {
       });
     } catch (error) {
       logger.error('Error creating default preferences', { error, clerkId });
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          // If preferences already exist, we can ignore this error
+          return;
+        }
+      }
       throw new BadRequestError('Failed to create default preferences');
     }
   }
