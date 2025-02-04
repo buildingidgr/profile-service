@@ -40,6 +40,27 @@ interface RegistrationAttempt {
   updatedAt: Date;
 }
 
+// Express Rate Limit declarations
+declare module 'express-rate-limit' {
+  import { Request, Response, NextFunction } from 'express';
+  
+  interface Options {
+    windowMs?: number;
+    max?: number;
+    message?: string;
+    statusCode?: number;
+    headers?: boolean;
+    skipFailedRequests?: boolean;
+    skipSuccessfulRequests?: boolean;
+    requestWasSuccessful?: (req: Request, res: Response) => boolean;
+    skip?: (req: Request, res: Response) => boolean;
+    handler?: (req: Request, res: Response, next: NextFunction) => void;
+    onLimitReached?: (req: Request, res: Response, optionsUsed: Options) => void;
+  }
+
+  export default function rateLimit(options?: Options): (req: Request, res: Response, next: NextFunction) => void;
+}
+
 // Module declarations for all possible import paths
 declare module '@utils/logger' {
   export const logger: Logger;
