@@ -1,11 +1,15 @@
 # Use official Node.js LTS image
 FROM node:18-alpine
 
+# Install OpenSSL
+RUN apk add --no-cache openssl
+
 # Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY tsconfig.json ./
 COPY prisma ./prisma/
 
 # Install dependencies

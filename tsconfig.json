@@ -10,7 +10,17 @@
     "resolveJsonModule": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "types": ["node", "express", "cors", "express-rate-limit"]
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"],
+      "@api/*": ["api/*"],
+      "@consumer/*": ["consumer/*"],
+      "@shared/*": ["shared/*"],
+      "@config/*": ["config/*"],
+      "@utils/*": ["utils/*"],
+      "@services/*": ["services/*"]
+    },
+    "types": ["node", "express", "cors", "express-rate-limit", "jest"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
