@@ -79,30 +79,65 @@ export class RabbitMQConnection {
 
   async consumeMessages(queue: string, callback: (message: any) => Promise<void>) {
     if (!this.channel) {
+      logger.error('Failed to consume messages: RabbitMQ channel not initialized');
       throw new Error('RabbitMQ channel not initialized');
     }
 
     try {
       await this.channel.assertQueue(queue, { durable: true });
-      logger.info(`Consuming messages from queue: ${queue}`);
+      logger.info(`Started consuming messages from queue: ${queue}`);
 
       this.channel.consume(queue, async (msg) => {
         if (msg) {
-          logger.info(`Received message from queue ${queue}:`, msg.content.toString());
+          const messageId = msg.properties.messageId || 'unknown';
+          logger.info(`[${messageId}] Processing message from queue ${queue}`, {
+            queue,
+            messageId,
+            content: msg.content.toString(),
+            properties: msg.properties
+          });
+
           try {
             const content = JSON.parse(msg.content.toString());
+            logger.info(`[${messageId}] Parsed message content`, { 
+              messageId,
+              eventType: content.type,
+              userId: content.data?.id,
+              data: content 
+            });
+
             await callback(content);
             this.channel?.ack(msg);
-            logger.info(`Acknowledged message from queue ${queue}`);
+            logger.info(`[${messageId}] Successfully processed and acknowledged message`, {
+              messageId,
+              eventType: content.type,
+              userId: content.data?.id
+            });
           } catch (error) {
-            logger.error(`Error processing message from queue ${queue}:`, error);
+            logger.error(`[${messageId}] Error processing message from queue ${queue}:`, {
+              error,
+              messageId,
+              content: msg.content.toString(),
+              stack: error instanceof Error ? error.stack : undefined
+            });
+            
+            // Add delay before requeuing to prevent immediate reprocessing
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
             this.channel?.nack(msg, false, true);
-            logger.info(`Nacked and requeued message from queue ${queue}`);
+            logger.info(`[${messageId}] Message nacked and requeued after error`, {
+              messageId,
+              queue
+            });
           }
         }
       });
     } catch (error) {
-      logger.error(`Error consuming messages from queue ${queue}:`, error);
+      logger.error(`Error setting up message consumption for queue ${queue}:`, {
+        error,
+        queue,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       throw error;
     }
   }
