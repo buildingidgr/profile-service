@@ -9,6 +9,7 @@ const HEARTBEAT_INTERVAL = 60;
 const CONNECTION_TIMEOUT = 30000;
 const SOCKET_TIMEOUT = 45000;
 const DEFAULT_RABBITMQ_URL = 'amqp://localhost:5672';
+const DEFAULT_QUEUE = 'webhook-events';
 
 export class RabbitMQConnection {
   private connection: amqp.Connection | null = null;
@@ -23,8 +24,9 @@ export class RabbitMQConnection {
   private readonly rabbitmqUrl: string;
 
   constructor() {
-    // Initialize the RabbitMQ URL once during construction
     this.rabbitmqUrl = config.rabbitmqUrl || DEFAULT_RABBITMQ_URL;
+    // Add webhook-events queue to active queues by default
+    this.activeQueues.add(DEFAULT_QUEUE);
   }
 
   async connect() {
@@ -42,10 +44,9 @@ export class RabbitMQConnection {
         maxAttempts: this.maxConnectionAttempts
       });
       
-      // Enhanced socket options for better connection stability
       const socketOptions = {
         keepAlive: true,
-        keepAliveDelay: 15000, // 15 seconds
+        keepAliveDelay: 15000,
         timeout: SOCKET_TIMEOUT,
         noDelay: true
       };
@@ -62,11 +63,14 @@ export class RabbitMQConnection {
       // Reset connection attempts on successful connection
       this.connectionAttempts = 0;
 
-      // Setup connection monitoring
-      this.setupConnectionMonitoring();
-
       // Set channel prefetch for better load handling
       await this.channel.prefetch(1);
+
+      // Setup the default queue first
+      await this.setupDefaultQueue();
+
+      // Setup connection monitoring
+      this.setupConnectionMonitoring();
 
       // Reassert all active queues and their consumers
       await this.reestablishQueues();
@@ -83,22 +87,52 @@ export class RabbitMQConnection {
     }
   }
 
+  private async setupDefaultQueue() {
+    if (!this.channel) return;
+
+    try {
+      // Assert the default queue with proper configuration
+      await this.channel.assertQueue(DEFAULT_QUEUE, {
+        durable: true,
+        // Add any other queue options you need
+      });
+      logger.info(`Successfully set up default queue: ${DEFAULT_QUEUE}`);
+
+      // Ensure the queue is in our active queues set
+      this.activeQueues.add(DEFAULT_QUEUE);
+    } catch (error) {
+      logger.error(`Failed to setup default queue ${DEFAULT_QUEUE}:`, error);
+      throw error;
+    }
+  }
+
   private async reestablishQueues() {
     if (!this.channel) return;
 
-    for (const queue of this.activeQueues) {
-      try {
-        await this.channel.assertQueue(queue, { durable: true });
-        logger.info(`Reasserted queue: ${queue}`);
+    try {
+      // Always ensure the default queue is set up first
+      await this.setupDefaultQueue();
 
-        const callback = this.queueCallbacks.get(queue);
-        if (callback) {
-          await this.setupQueueConsumer(queue, callback);
-          logger.info(`Reestablished consumer for queue: ${queue}`);
+      // Then handle any other active queues
+      for (const queue of this.activeQueues) {
+        if (queue === DEFAULT_QUEUE) continue; // Skip default queue as it's already set up
+
+        try {
+          await this.channel.assertQueue(queue, { durable: true });
+          logger.info(`Reasserted queue: ${queue}`);
+
+          const callback = this.queueCallbacks.get(queue);
+          if (callback) {
+            await this.setupQueueConsumer(queue, callback);
+            logger.info(`Reestablished consumer for queue: ${queue}`);
+          }
+        } catch (error) {
+          logger.error(`Failed to reestablish queue ${queue}:`, error);
         }
-      } catch (error) {
-        logger.error(`Failed to reestablish queue ${queue}:`, error);
       }
+    } catch (error) {
+      logger.error('Failed to reestablish queues:', error);
+      throw error;
     }
   }
 
@@ -328,19 +362,8 @@ export class RabbitMQConnection {
     }
 
     try {
-      if (this.activeQueues.size > 0) {
-        // Use the first active queue for health check
-        const queue = this.activeQueues.values().next().value;
-        if (queue) {
-          await this.channel.checkQueue(queue);
-        } else {
-          // Fallback to checking connection
-          await this.channel.checkQueue('health-check');
-        }
-      } else {
-        // If no active queues, create a temporary one for health check
-        await this.channel.checkQueue('health-check');
-      }
+      // Always check the default queue first
+      await this.channel.checkQueue(DEFAULT_QUEUE);
       return true;
     } catch (error) {
       logger.error('RabbitMQ health check failed:', error);
