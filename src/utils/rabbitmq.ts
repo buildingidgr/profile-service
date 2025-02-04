@@ -8,6 +8,7 @@ const RECONNECT_TIMEOUT = 5000;
 const HEARTBEAT_INTERVAL = 60;
 const CONNECTION_TIMEOUT = 30000;
 const SOCKET_TIMEOUT = 45000;
+const DEFAULT_RABBITMQ_URL = 'amqp://localhost:5672';
 
 export class RabbitMQConnection {
   private connection: amqp.Connection | null = null;
@@ -19,6 +20,12 @@ export class RabbitMQConnection {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private activeQueues: Set<string> = new Set();
   private queueCallbacks: Map<string, (message: any) => Promise<void>> = new Map();
+  private readonly rabbitmqUrl: string;
+
+  constructor() {
+    // Initialize the RabbitMQ URL once during construction
+    this.rabbitmqUrl = config.rabbitmqUrl || DEFAULT_RABBITMQ_URL;
+  }
 
   async connect() {
     if (this.isConnecting) {
@@ -43,7 +50,7 @@ export class RabbitMQConnection {
         noDelay: true
       };
 
-      this.connection = await amqp.connect(config.rabbitmqUrl, {
+      this.connection = await amqp.connect(this.rabbitmqUrl, {
         heartbeat: HEARTBEAT_INTERVAL,
         timeout: CONNECTION_TIMEOUT,
         socket: socketOptions
