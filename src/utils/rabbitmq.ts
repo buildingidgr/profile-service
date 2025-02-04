@@ -11,6 +11,11 @@ const SOCKET_TIMEOUT = 45000;
 const DEFAULT_RABBITMQ_URL = 'amqp://localhost:5672';
 const DEFAULT_QUEUE = 'webhook-events';
 
+// Default no-op callback for the webhook events queue
+const defaultWebhookCallback = async (message: any) => {
+  logger.info('Received webhook event:', message);
+};
+
 export class RabbitMQConnection {
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
@@ -25,8 +30,9 @@ export class RabbitMQConnection {
 
   constructor() {
     this.rabbitmqUrl = config.rabbitmqUrl || DEFAULT_RABBITMQ_URL;
-    // Add webhook-events queue to active queues by default
+    // Add webhook-events queue to active queues by default and set its callback
     this.activeQueues.add(DEFAULT_QUEUE);
+    this.queueCallbacks.set(DEFAULT_QUEUE, defaultWebhookCallback);
   }
 
   async connect() {
@@ -93,13 +99,21 @@ export class RabbitMQConnection {
     try {
       // Assert the default queue with proper configuration
       await this.channel.assertQueue(DEFAULT_QUEUE, {
-        durable: true,
-        // Add any other queue options you need
+        durable: true
       });
       logger.info(`Successfully set up default queue: ${DEFAULT_QUEUE}`);
 
       // Ensure the queue is in our active queues set
       this.activeQueues.add(DEFAULT_QUEUE);
+      
+      // Set up consumer for the default queue if not already set
+      if (!this.queueCallbacks.has(DEFAULT_QUEUE)) {
+        this.queueCallbacks.set(DEFAULT_QUEUE, defaultWebhookCallback);
+      }
+
+      // Start consuming from the default queue
+      await this.setupQueueConsumer(DEFAULT_QUEUE, this.queueCallbacks.get(DEFAULT_QUEUE)!);
+      logger.info(`Started consuming from ${DEFAULT_QUEUE} queue`);
     } catch (error) {
       logger.error(`Failed to setup default queue ${DEFAULT_QUEUE}:`, error);
       throw error;
