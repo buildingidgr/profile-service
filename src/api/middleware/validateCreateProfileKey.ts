@@ -16,7 +16,11 @@ const logger = createLogger('validateCreateProfileKey');
 // This key should be stored in environment variables
 const PROFILE_CREATE_API_KEY = process.env.PROFILE_CREATE_API_KEY || 'mh_profile_create_key_123456';
 
-export const validateCreateProfileKey = (req: Request, res: Response, next: NextFunction) => {
+export const validateCreateProfileKey = (
+  req: Request, 
+  res: Response, 
+  next: NextFunction
+): Response | void => {
   try {
     const apiKey = req.headers['x-api-key'];
     
@@ -32,7 +36,7 @@ export const validateCreateProfileKey = (req: Request, res: Response, next: Next
 
     // Add source identifier to the request
     req.source = 'external_service';
-    next();
+    return next();
   } catch (error) {
     logger.error('Error validating create profile API key:', error);
     return res.status(500).json({ error: 'Internal server error' });
