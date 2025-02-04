@@ -3,7 +3,7 @@ import { MongoClient, ObjectId } from 'mongodb';
 import crypto from 'crypto';
 import { RedisService } from './RedisService';
 import { BadRequestError } from '../shared/utils/errors';
-import { PreferencesService } from './PreferencesService';
+import { PreferencesService } from '../api/services/PreferencesService';
 import { mongoClient } from '../shared/utils/database';
 
 const logger = createLogger('ProfileService');

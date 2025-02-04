@@ -10,6 +10,4 @@ profileRoutes.patch('/me', profileController.updateProfile);
 profileRoutes.get('/me/preferences', profileController.getPreferences);
 profileRoutes.patch('/me/preferences', profileController.updateProfilePreferences);
 profileRoutes.post('/me/api-key', profileController.generateApiKey);
-profileRoutes.get('/me/professional', profileController.getProfessionalInfo);
-profileRoutes.patch('/me/professional', profileController.updateProfessionalInfo);
 
