@@ -2,14 +2,12 @@ import 'dotenv/config';
 import express, { Request } from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { createLogger } from './utils/logger';
-import { rabbitmq } from './utils/rabbitmq';
+import { createLogger } from './shared/utils/logger';
 import { config } from './config';
-import { profileRoutes } from './routes/profileRoutes';
-import { validateToken } from './middleware/validateToken';
-import { errorHandler } from './middleware/errorHandler';
-import { connectToDatabase } from './utils/database';
-import { WebhookConsumer } from './consumers/webhookConsumer';
+import { profileRoutes } from './api/routes/profileRoutes';
+import { validateToken } from './api/middleware/validateToken';
+import { errorHandler } from './api/middleware/errorHandler';
+import { connectToDatabase } from './shared/utils/database';
 
 // Augment the Express Request interface
 declare global {
@@ -55,21 +53,10 @@ app.get('/health', (_req: Request, res: express.Response) => {
 
 async function startServer() {
   try {
-    // Connect to database first
+    // Connect to database
     logger.info('Connecting to database...');
     await connectToDatabase();
     logger.info('Database connection established');
-
-    // Connect to RabbitMQ
-    logger.info('Connecting to RabbitMQ...');
-    await rabbitmq.connect();
-    logger.info('RabbitMQ connection established');
-
-    // Initialize webhook consumer
-    logger.info('Initializing webhook consumer...');
-    const webhookConsumer = WebhookConsumer.getInstance();
-    await webhookConsumer.start();
-    logger.info('Webhook consumer initialized');
 
     // API routes with JWT validation
     app.use('/api/profiles', validateToken, profileRoutes);
@@ -80,13 +67,12 @@ async function startServer() {
     // Start server
     const port = config.port || 3000;
     const server = app.listen(port, () => {
-      logger.info(`Server is running on port ${port}`);
+      logger.info(`API Server is running on port ${port}`);
     });
 
     // Handle graceful shutdown
     process.on('SIGTERM', async () => {
       logger.info('SIGTERM signal received. Starting graceful shutdown...');
-      await webhookConsumer.stop();
       server.close(() => {
         logger.info('Server closed');
         process.exit(0);
