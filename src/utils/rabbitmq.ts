@@ -17,6 +17,7 @@ const defaultWebhookCallback = async (message: any) => {
 };
 
 export class RabbitMQConnection {
+  private static instance: RabbitMQConnection | null = null;
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
   private reconnectTimeout: NodeJS.Timeout | null = null;
@@ -28,14 +29,26 @@ export class RabbitMQConnection {
   private queueCallbacks: Map<string, (message: any) => Promise<void>> = new Map();
   private readonly rabbitmqUrl: string;
 
-  constructor() {
+  private constructor() {
     this.rabbitmqUrl = config.rabbitmqUrl || DEFAULT_RABBITMQ_URL;
     // Add webhook-events queue to active queues by default and set its callback
     this.activeQueues.add(DEFAULT_QUEUE);
     this.queueCallbacks.set(DEFAULT_QUEUE, defaultWebhookCallback);
   }
 
+  public static getInstance(): RabbitMQConnection {
+    if (!RabbitMQConnection.instance) {
+      RabbitMQConnection.instance = new RabbitMQConnection();
+    }
+    return RabbitMQConnection.instance;
+  }
+
   async connect() {
+    if (this.connection) {
+      logger.info('Already connected to RabbitMQ');
+      return;
+    }
+
     if (this.isConnecting) {
       logger.info('Connection attempt already in progress');
       return;
@@ -49,47 +62,36 @@ export class RabbitMQConnection {
         attempt: this.connectionAttempts,
         maxAttempts: this.maxConnectionAttempts
       });
-      
-      const socketOptions = {
-        keepAlive: true,
-        keepAliveDelay: 15000,
-        timeout: SOCKET_TIMEOUT,
-        noDelay: true
-      };
 
       this.connection = await amqp.connect(this.rabbitmqUrl, {
         heartbeat: HEARTBEAT_INTERVAL,
         timeout: CONNECTION_TIMEOUT,
-        socket: socketOptions
+        socket: {
+          timeout: SOCKET_TIMEOUT
+        }
       });
 
-      this.channel = await this.connection.createChannel();
       logger.info('Connected to RabbitMQ successfully');
 
-      // Reset connection attempts on successful connection
-      this.connectionAttempts = 0;
-
-      // Set channel prefetch for better load handling
-      await this.channel.prefetch(1);
-
-      // Setup the default queue first
-      await this.setupDefaultQueue();
-
+      // Create a channel
+      this.channel = await this.connection.createChannel();
+      
       // Setup connection monitoring
       this.setupConnectionMonitoring();
-
-      // Reassert all active queues and their consumers
-      await this.reestablishQueues();
-
+      
+      // Setup default queue
+      await this.setupDefaultQueue();
+      
+      // Reset connection attempts on successful connection
+      this.connectionAttempts = 0;
       this.isConnecting = false;
+
       logger.info('RabbitMQ connection established and ready to consume messages');
     } catch (error) {
-      logger.error('Failed to connect to RabbitMQ:', { 
-        error, 
-        stack: error instanceof Error ? error.stack : undefined,
-        attempt: this.connectionAttempts
-      });
+      this.isConnecting = false;
+      logger.error('Failed to connect to RabbitMQ:', error);
       this.handleConnectionFailure();
+      throw error;
     }
   }
 
@@ -345,29 +347,33 @@ export class RabbitMQConnection {
   }
 
   async close() {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
+    try {
+      if (this.heartbeatTimer) {
+        clearInterval(this.heartbeatTimer);
+        this.heartbeatTimer = null;
+      }
+
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+
+      if (this.channel) {
+        await this.channel.close();
+        this.channel = null;
+      }
+
+      if (this.connection) {
+        await this.connection.close();
+        this.connection = null;
+      }
+
+      RabbitMQConnection.instance = null;
+      logger.info('RabbitMQ connection closed');
+    } catch (error) {
+      logger.error('Error closing RabbitMQ connection:', error);
+      throw error;
     }
-
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-    }
-
-    // Clear queue tracking
-    this.activeQueues.clear();
-    this.queueCallbacks.clear();
-
-    if (this.channel) {
-      await this.channel.close();
-    }
-
-    if (this.connection) {
-      await this.connection.close();
-    }
-
-    this.channel = null;
-    this.connection = null;
   }
 
   async checkHealth(): Promise<boolean> {
@@ -386,5 +392,6 @@ export class RabbitMQConnection {
   }
 }
 
-export const rabbitmq = new RabbitMQConnection();
+// Export a singleton instance
+export const rabbitmq = RabbitMQConnection.getInstance();
 

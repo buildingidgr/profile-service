@@ -1,4 +1,4 @@
-import { RabbitMQConnection } from '../utils/rabbitmq';
+import { RabbitMQConnection, rabbitmq } from '../utils/rabbitmq';
 import { createLogger } from '../utils/logger';
 import { WebhookService } from '../services/WebhookService';
 import { Channel, ConsumeMessage } from 'amqplib';
@@ -7,13 +7,11 @@ const logger = createLogger('webhookConsumer');
 
 export class WebhookConsumer {
   private static instance: WebhookConsumer | null = null;
-  private connection: RabbitMQConnection;
   private webhookService: WebhookService;
   private channel: Channel | null = null;
   private isStarted: boolean = false;
 
   private constructor() {
-    this.connection = new RabbitMQConnection();
     this.webhookService = new WebhookService();
   }
 
@@ -31,8 +29,8 @@ export class WebhookConsumer {
     }
 
     try {
-      await this.connection.connect();
-      this.channel = await this.connection.getChannel();
+      // Get channel from the singleton RabbitMQ connection
+      this.channel = await rabbitmq.getChannel();
       
       const queueName = 'webhook-events';
       await this.channel.assertQueue(queueName, { durable: true });
@@ -138,9 +136,6 @@ export class WebhookConsumer {
       if (this.channel) {
         await this.channel.close();
         this.channel = null;
-      }
-      if (this.connection) {
-        await this.connection.close();
       }
       this.isStarted = false;
       WebhookConsumer.instance = null;
