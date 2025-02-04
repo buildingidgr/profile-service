@@ -68,7 +68,7 @@ async function startServer() {
 
     // Initialize webhook consumer
     logger.info('Initializing webhook consumer...');
-    const webhookConsumer = new WebhookConsumer();
+    const webhookConsumer = WebhookConsumer.getInstance();
     await webhookConsumer.start();
     logger.info('Webhook consumer initialized');
 

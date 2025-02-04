@@ -6,14 +6,22 @@ import { Channel, ConsumeMessage } from 'amqplib';
 const logger = createLogger('webhookConsumer');
 
 export class WebhookConsumer {
+  private static instance: WebhookConsumer | null = null;
   private connection: RabbitMQConnection;
   private webhookService: WebhookService;
   private channel: Channel | null = null;
   private isStarted: boolean = false;
 
-  constructor() {
+  private constructor() {
     this.connection = new RabbitMQConnection();
     this.webhookService = new WebhookService();
+  }
+
+  public static getInstance(): WebhookConsumer {
+    if (!WebhookConsumer.instance) {
+      WebhookConsumer.instance = new WebhookConsumer();
+    }
+    return WebhookConsumer.instance;
   }
 
   async start() {
@@ -135,6 +143,7 @@ export class WebhookConsumer {
         await this.connection.close();
       }
       this.isStarted = false;
+      WebhookConsumer.instance = null;
       logger.info('Webhook consumer stopped');
     } catch (error) {
       logger.error('Error stopping webhook consumer:', {
@@ -149,7 +158,7 @@ export class WebhookConsumer {
 
 // Only create and start the consumer if this file is being run directly
 if (require.main === module) {
-  const consumer = new WebhookConsumer();
+  const consumer = WebhookConsumer.getInstance();
   consumer.start().catch((error) => {
     console.error('DEBUG - Failed to start consumer:', error);
     
