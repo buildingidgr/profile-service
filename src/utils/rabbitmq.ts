@@ -200,8 +200,13 @@ export class RabbitMQConnection {
       try {
         if (this.channel && this.activeQueues.size > 0) {
           // Check the first active queue as a heartbeat
-          const queue = this.activeQueues.values().next().value;
-          await this.channel.checkQueue(queue);
+          const queueIterator = this.activeQueues.values().next();
+          if (!queueIterator.done && queueIterator.value) {
+            await this.channel.checkQueue(queueIterator.value);
+          } else {
+            // Fallback to checking connection with health-check queue
+            await this.channel.checkQueue('health-check');
+          }
         }
       } catch (error) {
         logger.error('Heartbeat check failed:', error);
