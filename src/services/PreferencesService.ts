@@ -1,9 +1,9 @@
 import { createLogger } from '../shared/utils/logger';
 import { BadRequestError } from '../shared/utils/errors';
-import { prisma } from '../shared/utils/database';
-import { Prisma } from '@prisma/client';
+import { mongoClient } from '../shared/utils/database';
 
 const logger = createLogger('PreferencesService');
+const db = mongoClient.db();
 
 export interface UserPreferences {
   dashboard: {
@@ -44,101 +44,72 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 export class PreferencesService {
   async getPreferences(clerkId: string): Promise<UserPreferences> {
     try {
-      const preferences = await prisma.userPreferences.findUnique({
-        where: { clerkId },
-        select: {
-          preferences: true
-        }
-      });
+      const preferencesCollection = db.collection('UserPreferences');
+      const preferences = await preferencesCollection.findOne({ clerkId });
 
       if (!preferences) {
         await this.createDefaultPreferences(clerkId);
         return DEFAULT_PREFERENCES;
       }
 
-      return preferences.preferences as unknown as UserPreferences;
+      return preferences.preferences;
     } catch (error) {
       logger.error('Error getting preferences', { error, clerkId });
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new BadRequestError('Preferences already exist for this user');
-        }
-      }
       throw new BadRequestError('Failed to get preferences');
     }
   }
 
   async updatePreferences(clerkId: string, data: Partial<UserPreferences>): Promise<UserPreferences> {
     try {
-      // First try to find existing preferences
-      let preferences = await prisma.userPreferences.findUnique({
-        where: { clerkId },
-        select: {
-          preferences: true
-        }
-      });
+      const preferencesCollection = db.collection('UserPreferences');
+      const currentPreferences = await preferencesCollection.findOne({ clerkId });
 
-      if (!preferences) {
-        // If no preferences exist, create new ones
-        preferences = await prisma.userPreferences.create({
-          data: {
-            clerkId,
-            preferences: DEFAULT_PREFERENCES as unknown as Prisma.InputJsonValue
-          },
-          select: {
-            preferences: true
-          }
-        });
-      }
-
-      // Merge the preferences
-      const currentPrefs = preferences.preferences as unknown as UserPreferences;
       const updatedPreferences = {
         ...DEFAULT_PREFERENCES,
-        ...currentPrefs,
+        ...(currentPreferences?.preferences || {}),
         ...data
       };
 
-      // Update the preferences
-      const result = await prisma.userPreferences.update({
-        where: { clerkId },
-        data: {
-          preferences: updatedPreferences as unknown as Prisma.InputJsonValue
+      const result = await preferencesCollection.findOneAndUpdate(
+        { clerkId },
+        { 
+          $set: { 
+            preferences: updatedPreferences,
+            updatedAt: new Date()
+          }
         },
-        select: {
-          preferences: true
+        { 
+          upsert: true,
+          returnDocument: 'after'
         }
-      });
+      );
 
-      return result.preferences as unknown as UserPreferences;
+      if (!result.value) {
+        throw new BadRequestError('Failed to update preferences');
+      }
+
+      return result.value.preferences;
     } catch (error) {
       logger.error('Error updating preferences', { error, clerkId });
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new BadRequestError('Preferences already exist for this user');
-        }
-      }
       throw new BadRequestError('Failed to update preferences');
     }
   }
 
   async createDefaultPreferences(clerkId: string): Promise<void> {
     try {
-      await prisma.userPreferences.create({
-        data: {
-          clerkId,
-          preferences: DEFAULT_PREFERENCES as unknown as Prisma.InputJsonValue
-        }
+      const preferencesCollection = db.collection('UserPreferences');
+      await preferencesCollection.insertOne({
+        clerkId,
+        preferences: DEFAULT_PREFERENCES,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
     } catch (error) {
-      logger.error('Error creating default preferences', { error, clerkId });
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          // If preferences already exist, we can ignore this error
-          return;
-        }
+      // If error is duplicate key, ignore it as preferences already exist
+      if ((error as any).code !== 11000) {
+        logger.error('Error creating default preferences', { error, clerkId });
+        throw new BadRequestError('Failed to create default preferences');
       }
-      throw new BadRequestError('Failed to create default preferences');
     }
   }
 } 
