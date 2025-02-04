@@ -91,7 +91,7 @@ export class ProfessionalService {
       if (data.profession?.current) {
         // Validate profession value
         if (!DEFAULT_PROFESSIONAL_INFO.profession.allowedValues.includes(data.profession.current)) {
-          throw new BadRequestError('Invalid profession value');
+          throw new BadRequestError(`Invalid profession value. Must be one of: ${DEFAULT_PROFESSIONAL_INFO.profession.allowedValues.join(', ')}`);
         }
         updateOperations['professionalInfo.profession.current'] = data.profession.current;
       }
@@ -146,6 +146,9 @@ export class ProfessionalService {
       return result.value.professionalInfo;
     } catch (error) {
       logger.error('Error updating professional info', { error, clerkId });
+      if (error instanceof BadRequestError) {
+        throw error;
+      }
       throw new BadRequestError('Failed to update professional info');
     }
   }
