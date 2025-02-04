@@ -268,18 +268,42 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/professional",
+              "raw": "{{baseUrl}}/api/profiles/me/professional",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "professional"]
+              "path": ["api", "profiles", "me", "professional"]
             },
-            "description": "Get professional information"
+            "description": "Get the professional information for the current user"
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text"
+                  }
+                ]
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"profession\": {\n    \"current\": \"Civil Engineer\",\n    \"allowedValues\": [\n      \"Civil Engineer\",\n      \"Architectural Engineer\",\n      \"Mechanical Engineer\",\n      \"Chemical Engineer\",\n      \"Electrical Engineer\",\n      \"Surveying and Rural Engineer\",\n      \"Naval Architect and Marine Engineer\",\n      \"Electronics Engineer\",\n      \"Mining and Metallurgical Engineer\",\n      \"Urban, Regional and Development Planning Engineer\",\n      \"Automation Engineer\",\n      \"Environmental Engineer\",\n      \"Production and Management Engineer\",\n      \"Acoustical Engineer\",\n      \"Materials Engineer\",\n      \"Product and Systems Design Engineer\"\n    ]\n  },\n  \"amtee\": \"12345\",\n  \"areaOfOperation\": {\n    \"primary\": \"Athens\",\n    \"address\": \"123 Main St\",\n    \"coordinates\": {\n      \"latitude\": 37.9838,\n      \"longitude\": 23.7275\n    }\n  },\n  \"radius\": 5\n}"
+            }
+          ]
         },
         {
           "name": "Update Professional Info",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [
               {
                 "key": "Authorization",
@@ -294,16 +318,76 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"profession\": {\n    \"current\": \"Civil Engineer\"\n  },\n  \"amtee\": \"12345\",\n  \"areaOfOperation\": {\n    \"primary\": \"Athens\",\n    \"address\": \"123 Main St, Athens\",\n    \"coordinates\": {\n      \"latitude\": 37.9838,\n      \"longitude\": 23.7275\n    }\n  }\n}"
+              "raw": "{\n  \"profession\": {\n    \"current\": \"Civil Engineer\"\n  },\n  \"amtee\": \"12345\",\n  \"areaOfOperation\": {\n    \"primary\": \"Athens\",\n    \"address\": \"123 Main St\",\n    \"coordinates\": {\n      \"latitude\": 37.9838,\n      \"longitude\": 23.7275\n    }\n  },\n  \"radius\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
-              "raw": "{{baseUrl}}/api/professional",
+              "raw": "{{baseUrl}}/api/profiles/me/professional",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "professional"]
+              "path": ["api", "profiles", "me", "professional"]
             },
-            "description": "Update professional information. Only specified fields will be updated."
+            "description": "Update professional information. Only specified fields will be updated. The radius field is optional and must be a non-negative integer."
           },
-          "response": []
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"profession\": {\n    \"current\": \"Civil Engineer\"\n  },\n  \"radius\": 5\n}"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"profession\": {\n    \"current\": \"Civil Engineer\",\n    \"allowedValues\": [...]\n  },\n  \"amtee\": \"12345\",\n  \"areaOfOperation\": {\n    \"primary\": \"Athens\",\n    \"address\": \"123 Main St\",\n    \"coordinates\": {\n      \"latitude\": 37.9838,\n      \"longitude\": 23.7275\n    }\n  },\n  \"radius\": 5\n}"
+            },
+            {
+              "name": "Error - Invalid Radius",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{jwt_token}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"radius\": -1\n}"
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"Radius must be a non-negative integer\"\n}"
+            }
+          ]
         }
       ]
     },

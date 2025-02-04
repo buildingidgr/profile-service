@@ -20,6 +20,7 @@ export interface ProfessionalInfo {
       longitude: number;
     };
   };
+  radius?: number;
 }
 
 const DEFAULT_PROFESSIONAL_INFO: ProfessionalInfo = {
@@ -52,7 +53,8 @@ const DEFAULT_PROFESSIONAL_INFO: ProfessionalInfo = {
       latitude: 0,
       longitude: 0
     }
-  }
+  },
+  radius: 0
 };
 
 export class ProfessionalService {
@@ -99,6 +101,14 @@ export class ProfessionalService {
       // Handle AMTEE updates
       if (data.amtee !== undefined) {
         updateOperations['professionalInfo.amtee'] = data.amtee;
+      }
+
+      // Handle radius updates
+      if (data.radius !== undefined) {
+        if (!Number.isInteger(data.radius) || data.radius < 0) {
+          throw new BadRequestError('Radius must be a non-negative integer');
+        }
+        updateOperations['professionalInfo.radius'] = data.radius;
       }
 
       // Handle area of operation updates
