@@ -84,6 +84,16 @@ async function startServer() {
       logger.info(`Server is running on port ${port}`);
     });
 
+    // Handle graceful shutdown
+    process.on('SIGTERM', async () => {
+      logger.info('SIGTERM signal received. Starting graceful shutdown...');
+      await webhookConsumer.stop();
+      server.close(() => {
+        logger.info('Server closed');
+        process.exit(0);
+      });
+    });
+
     return server;
   } catch (error) {
     logger.error('Failed to start server:', {
