@@ -2,11 +2,10 @@ import { Request, Response } from 'express';
 import { ProfileService } from '../services/ProfileService';
 import authService from '../services/authService';
 import { createLogger } from '../utils/logger';
-import { prisma, mongoClient } from '../utils/database';
+import { mongoClient } from '../utils/database';
 import { BadRequestError } from '../utils/errors';
 import { ObjectId } from 'mongodb';
 import { config } from '../config';
-import { safeProfileUpdate } from '../utils/database';
 import { PreferencesService } from '../services/PreferencesService';
 
 // Extend Express Request type to include userId
@@ -32,31 +31,37 @@ export class ProfileController {
 
   async getProfile(req: Request, res: Response) {
     try {
-      // Use the authenticated user's ID from the token
       const clerkId = req.user?.sub || req.userId;
       
       if (!clerkId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      const profile = await prisma.profile.findUnique({
-        where: { clerkId },
-      });
+      const profileCollection = this.db.collection('Profile');
+      const profile = await profileCollection.findOne({ clerkId });
 
       if (!profile) {
         return res.status(404).json({ error: 'Profile not found' });
       }
 
-      return res.json(profile);
+      return res.json({
+        id: profile._id.toString(),
+        clerkId: profile.clerkId,
+        ...profile,
+        _id: undefined
+      });
     } catch (error) {
-      logger.error('Error getting profile:', error);
+      logger.error('Error getting profile:', { 
+        error, 
+        clerkId: req.user?.sub || req.userId,
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
   async updateProfile(req: Request, res: Response) {
     try {
-      // Use the authenticated user's ID from the token
       const clerkId = req.user?.sub || req.userId;
       const updateData = req.body;
 
@@ -64,19 +69,42 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Use the new safeProfileUpdate method
-      const profile = await safeProfileUpdate(clerkId, updateData);
+      const profileCollection = this.db.collection('Profile');
+      const result = await profileCollection.findOneAndUpdate(
+        { clerkId },
+        { 
+          $set: { 
+            ...updateData,
+            updatedAt: new Date().toISOString()
+          }
+        },
+        { 
+          returnDocument: 'after'
+        }
+      );
 
-      return res.json(profile);
+      if (!result.value) {
+        return res.status(404).json({ error: 'Profile not found' });
+      }
+
+      return res.json({
+        id: result.value._id.toString(),
+        clerkId: result.value.clerkId,
+        ...result.value,
+        _id: undefined
+      });
     } catch (error) {
-      logger.error('Error updating profile:', error);
+      logger.error('Error updating profile:', { 
+        error, 
+        clerkId: req.user?.sub || req.userId,
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
   async createProfile(req: Request, res: Response) {
     try {
-      // Use the authenticated user's ID from the token
       const clerkId = req.user?.sub || req.userId;
       const profileData = req.body;
 
@@ -84,44 +112,68 @@ export class ProfileController {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Ensure the profile data uses the authenticated user's ID
-      profileData.clerkId = clerkId;
-
-      const existingProfile = await prisma.profile.findUnique({
-        where: { clerkId },
-      });
+      const profileCollection = this.db.collection('Profile');
+      const existingProfile = await profileCollection.findOne({ clerkId });
 
       if (existingProfile) {
         return res.status(409).json({ error: 'Profile already exists' });
       }
 
-      const profile = await prisma.profile.create({
-        data: profileData,
-      });
+      const now = new Date().toISOString();
+      const newProfile = {
+        _id: new ObjectId(),
+        clerkId,
+        ...profileData,
+        createdAt: now,
+        updatedAt: now
+      };
 
-      return res.status(201).json(profile);
+      await profileCollection.insertOne(newProfile);
+
+      // Create default preferences when profile is created
+      const preferencesService = new PreferencesService();
+      await preferencesService.createDefaultPreferences(clerkId);
+
+      return res.status(201).json({
+        id: newProfile._id.toString(),
+        clerkId: newProfile.clerkId,
+        ...newProfile,
+        _id: undefined
+      });
     } catch (error) {
-      logger.error('Error creating profile:', error);
+      logger.error('Error creating profile:', { 
+        error, 
+        clerkId: req.user?.sub || req.userId,
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
 
   async deleteProfile(req: Request, res: Response) {
     try {
-      // Use the authenticated user's ID from the token
       const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      await prisma.profile.delete({
-        where: { clerkId },
-      });
+      const profileCollection = this.db.collection('Profile');
+      const preferencesCollection = this.db.collection('UserPreferences');
+
+      // Delete both profile and preferences
+      await Promise.all([
+        profileCollection.deleteOne({ clerkId }),
+        preferencesCollection.deleteOne({ clerkId })
+      ]);
 
       return res.status(204).send();
     } catch (error) {
-      logger.error('Error deleting profile:', error);
+      logger.error('Error deleting profile:', { 
+        error, 
+        clerkId: req.user?.sub || req.userId,
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
