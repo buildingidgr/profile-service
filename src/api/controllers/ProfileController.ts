@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
-import { ProfileService } from '../services/ProfileService';
-import authService from '../services/authService';
-import { createLogger } from '../utils/logger';
-import { mongoClient } from '../utils/database';
-import { BadRequestError } from '../utils/errors';
+import { ProfileService } from '@services/ProfileService';
+import authService from '@services/authService';
+import { createLogger } from '@shared/utils/logger';
+import { mongoClient } from '@shared/utils/database';
+import { BadRequestError } from '@shared/utils/errors';
 import { ObjectId } from 'mongodb';
-import { config } from '../config';
-import { PreferencesService } from '../services/PreferencesService';
+import { config } from '@shared/config';
+import { PreferencesService } from '@services/PreferencesService';
 
 // Extend Express Request type to include userId
 declare global {

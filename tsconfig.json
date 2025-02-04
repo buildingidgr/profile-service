@@ -10,15 +10,18 @@
     "resolveJsonModule": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "baseUrl": "./src",
+    "baseUrl": ".",
+    "moduleResolution": "node",
     "paths": {
-      "@/*": ["*"],
-      "@api/*": ["api/*"],
-      "@consumer/*": ["consumer/*"],
-      "@shared/*": ["shared/*"],
-      "@config/*": ["config/*"],
-      "@utils/*": ["utils/*"],
-      "@services/*": ["services/*"]
+      "*": ["node_modules/*"],
+      "src/*": ["src/*"],
+      "@/*": ["src/*"],
+      "@api/*": ["src/api/*"],
+      "@consumer/*": ["src/consumer/*"],
+      "@shared/*": ["src/shared/*"],
+      "@config/*": ["src/config/*"],
+      "@utils/*": ["src/utils/*"],
+      "@services/*": ["src/services/*"]
     },
     "types": ["node", "express", "cors", "express-rate-limit", "jest"]
   },
