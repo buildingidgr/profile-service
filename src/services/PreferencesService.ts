@@ -60,7 +60,6 @@ export class PreferencesService {
     } catch (error) {
       logger.error('Error getting preferences', { error, clerkId });
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        // Handle specific Prisma errors
         if (error.code === 'P2002') {
           throw new BadRequestError('Preferences already exist for this user');
         }
@@ -71,26 +70,39 @@ export class PreferencesService {
 
   async updatePreferences(clerkId: string, data: Partial<UserPreferences>): Promise<UserPreferences> {
     try {
-      const currentPreferences = await prisma.userPreferences.findUnique({
+      // First try to find existing preferences
+      let preferences = await prisma.userPreferences.findUnique({
         where: { clerkId },
         select: {
           preferences: true
         }
       });
 
+      if (!preferences) {
+        // If no preferences exist, create new ones
+        preferences = await prisma.userPreferences.create({
+          data: {
+            clerkId,
+            preferences: DEFAULT_PREFERENCES as unknown as Prisma.InputJsonValue
+          },
+          select: {
+            preferences: true
+          }
+        });
+      }
+
+      // Merge the preferences
+      const currentPrefs = preferences.preferences as unknown as UserPreferences;
       const updatedPreferences = {
         ...DEFAULT_PREFERENCES,
-        ...(currentPreferences?.preferences as unknown as UserPreferences || {}),
+        ...currentPrefs,
         ...data
       };
 
-      const result = await prisma.userPreferences.upsert({
+      // Update the preferences
+      const result = await prisma.userPreferences.update({
         where: { clerkId },
-        create: {
-          clerkId,
-          preferences: updatedPreferences as unknown as Prisma.InputJsonValue
-        },
-        update: {
+        data: {
           preferences: updatedPreferences as unknown as Prisma.InputJsonValue
         },
         select: {
