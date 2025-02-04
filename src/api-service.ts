@@ -8,6 +8,8 @@ import { config } from './config';
 import { profileRoutes } from './routes/profileRoutes';
 import { validateToken } from './middleware/validateToken';
 import { errorHandler } from './middleware/errorHandler';
+import { connectToDatabase } from './utils/database';
+import './consumers/webhookConsumer';
 import './consumers/opportunityConsumer';
 
 // Augment the Express Request interface
@@ -52,13 +54,14 @@ app.get('/health', (_req: Request, res: express.Response) => {
   res.json({ status: 'ok' });
 });
 
-// Connect to RabbitMQ
-rabbitmq.connect().catch((error) => {
-  logger.error('Failed to connect to RabbitMQ:', error);
-});
-
-function startServer() {
+async function startServer() {
   try {
+    // Connect to database
+    await connectToDatabase();
+
+    // Connect to RabbitMQ
+    await rabbitmq.connect();
+
     // API routes with JWT validation
     app.use('/api/profiles', validateToken, profileRoutes);
 
