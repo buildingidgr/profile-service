@@ -145,18 +145,24 @@ export class ProfileController {
       const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
+        logger.error('Unauthorized access attempt to preferences');
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
+      logger.info('Getting preferences for user', { clerkId });
       const preferencesService = new PreferencesService();
       const preferences = await preferencesService.getPreferences(clerkId);
 
       return res.json(preferences);
     } catch (error) {
-      logger.error('Error getting preferences:', error);
+      logger.error('Error getting preferences:', { error, clerkId: req.user?.sub || req.userId });
       
-      if (error instanceof Error && error.message === 'Preferences not found') {
-        return res.status(404).json({ error: 'Preferences not found' });
+      if (error instanceof BadRequestError) {
+        return res.status(400).json({ error: error.message });
+      }
+      
+      if (error instanceof Error) {
+        return res.status(500).json({ error: error.message });
       }
       
       return res.status(500).json({ error: 'Internal server error' });
@@ -168,11 +174,13 @@ export class ProfileController {
       const clerkId = req.user?.sub || req.userId;
 
       if (!clerkId) {
+        logger.error('Unauthorized access attempt to update preferences');
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
       // Validate request body
       if (!req.body || typeof req.body !== 'object') {
+        logger.error('Invalid request body for preferences update', { body: req.body });
         return res.status(400).json({ 
           error: 'Invalid request body. Expected a JSON object with preferences.' 
         });
@@ -184,18 +192,29 @@ export class ProfileController {
           ? JSON.parse(req.body) 
           : req.body;
 
+        logger.info('Updating preferences for user', { clerkId, preferencesData });
         const preferencesService = new PreferencesService();
         const preferences = await preferencesService.updatePreferences(clerkId, preferencesData);
 
         return res.json(preferences);
       } catch (parseError: any) {
+        logger.error('Error parsing preferences data', { error: parseError });
         return res.status(400).json({ 
           error: 'Invalid JSON format in request body.',
           details: parseError.message 
         });
       }
     } catch (error) {
-      logger.error('Error updating profile preferences:', error);
+      logger.error('Error updating preferences:', { error, clerkId: req.user?.sub || req.userId });
+      
+      if (error instanceof BadRequestError) {
+        return res.status(400).json({ error: error.message });
+      }
+      
+      if (error instanceof Error) {
+        return res.status(500).json({ error: error.message });
+      }
+      
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
