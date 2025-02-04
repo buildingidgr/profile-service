@@ -11,13 +11,13 @@ const preferencesService = new PreferencesService();
 export class ProfileController {
   async createProfile(req: Request, res: Response, next: NextFunction) {
     try {
-      const clerkId = req.user?.sub;
+      const { clerkId, apiKey, ...profileData } = req.body;
+      
+      // Validate clerkId presence
       if (!clerkId) {
-        throw new BadRequestError('User ID is required');
+        throw new BadRequestError('clerkId is required in request body');
       }
 
-      const { apiKey, ...profileData } = req.body;
-      
       // Validate API key format and presence
       if (!apiKey) {
         throw new BadRequestError('API key is required');
@@ -28,9 +28,9 @@ export class ProfileController {
       }
 
       const data = {
-        ...profileData,
         clerkId,
         apiKey,
+        ...profileData,
         createdAt: new Date(),
         updatedAt: new Date()
       };
