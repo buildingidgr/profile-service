@@ -10,7 +10,7 @@ import { validateToken } from './middleware/validateToken';
 import { errorHandler } from './middleware/errorHandler';
 import { connectToDatabase } from './utils/database';
 import { WebhookConsumer } from './consumers/webhookConsumer';
-import './consumers/opportunityConsumer';
+import { OpportunityConsumer } from './consumers/opportunityConsumer';
 
 // Augment the Express Request interface
 declare global {
@@ -66,11 +66,18 @@ async function startServer() {
     await rabbitmq.connect();
     logger.info('RabbitMQ connection established');
 
-    // Initialize webhook consumer
-    logger.info('Initializing webhook consumer...');
+    // Initialize consumers
+    logger.info('Initializing consumers...');
+    
     const webhookConsumer = WebhookConsumer.getInstance();
-    await webhookConsumer.start();
-    logger.info('Webhook consumer initialized');
+    const opportunityConsumer = OpportunityConsumer.getInstance();
+
+    await Promise.all([
+      webhookConsumer.start(),
+      opportunityConsumer.start()
+    ]);
+
+    logger.info('All consumers initialized');
 
     // API routes with JWT validation
     app.use('/api/profiles', validateToken, profileRoutes);
@@ -87,7 +94,13 @@ async function startServer() {
     // Handle graceful shutdown
     process.on('SIGTERM', async () => {
       logger.info('SIGTERM signal received. Starting graceful shutdown...');
-      await webhookConsumer.stop();
+      
+      // Stop all consumers
+      await Promise.all([
+        webhookConsumer.stop(),
+        opportunityConsumer.stop()
+      ]);
+
       server.close(() => {
         logger.info('Server closed');
         process.exit(0);
