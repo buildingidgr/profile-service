@@ -22,16 +22,16 @@ export const prisma = new PrismaClient({
 let mongoClient: MongoClient;
 
 if (!global.mongoClient) {
-  mongoClient = new MongoClient(config.databaseUrl, {
+  mongoClient = new MongoClient(process.env.DATABASE_URL || config.databaseUrl, {
     directConnection: true,
-    retryWrites: false,
-    serverSelectionTimeoutMS: 5000,
+    retryWrites: true,
+    serverSelectionTimeoutMS: 30000,
     socketTimeoutMS: 45000,
-    monitorCommands: true,
-    maxPoolSize: 10,
+    connectTimeoutMS: 30000,
+    maxPoolSize: 50,
     minPoolSize: 0,
     maxIdleTimeMS: 30000,
-    connectTimeoutMS: 30000
+    waitQueueTimeoutMS: 10000
   });
   global.mongoClient = mongoClient;
 } else {

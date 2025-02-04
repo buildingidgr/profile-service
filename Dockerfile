@@ -27,9 +27,16 @@ RUN npm run build
 # Ensure proper file structure for module aliases
 RUN mkdir -p dist/shared/utils dist/services dist/api
 
-# Expose the port from environment variable
+# Set default environment variables
+ENV NODE_ENV=production
 ENV PORT=3000
+
+# Expose the port
 EXPOSE $PORT
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:$PORT/health || exit 1
 
 # Start the application
 CMD ["npm", "start"]
