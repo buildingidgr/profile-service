@@ -51,19 +51,17 @@ export class RabbitMQConnection {
       this.connectionAttempts = 0;
 
       const queueName = 'webhook-events';
-      await this.channel.assertQueue(queueName, { 
-        durable: true,
-        // Add queue options for better message handling
-        deadLetterExchange: 'webhook-events-dlx',
-        messageTtl: 24 * 60 * 60 * 1000 // 24 hours
-      });
-      
-      // Assert DLX and DLQ
-      await this.channel.assertExchange('webhook-events-dlx', 'direct', { durable: true });
-      await this.channel.assertQueue('webhook-events-dlq', { durable: true });
-      await this.channel.bindQueue('webhook-events-dlq', 'webhook-events-dlx', 'webhook-events');
-
-      logger.info(`Successfully asserted queue and DLQ setup: ${queueName}`);
+      try {
+        // Create the queue with basic configuration to match existing queue
+        await this.channel.assertQueue(queueName, { 
+          durable: true
+        });
+        
+        logger.info(`Successfully asserted queue: ${queueName}`);
+      } catch (queueError) {
+        logger.error(`Failed to setup queue ${queueName}:`, queueError);
+        throw queueError;
+      }
 
       this.connection.on('error', (err) => {
         logger.error('RabbitMQ connection error:', { error: err, stack: err.stack });
