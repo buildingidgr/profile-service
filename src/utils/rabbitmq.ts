@@ -4,11 +4,17 @@ import { createLogger } from './logger';
 
 const logger = createLogger('rabbitmq');
 
+const RECONNECT_TIMEOUT = 5000;
+const HEARTBEAT_INTERVAL = 30;
+const CONNECTION_TIMEOUT = 10000;
+
 export class RabbitMQConnection {
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private isConnecting: boolean = false;
+  private connectionAttempts: number = 0;
+  private readonly maxConnectionAttempts: number = 10;
 
   async connect() {
     if (this.isConnecting) {
@@ -17,42 +23,123 @@ export class RabbitMQConnection {
     }
 
     this.isConnecting = true;
+    this.connectionAttempts++;
 
     try {
-      this.connection = await amqp.connect(config.rabbitmqUrl || '', {
-        heartbeat: 30,
+      logger.info('Attempting to connect to RabbitMQ', {
+        attempt: this.connectionAttempts,
+        maxAttempts: this.maxConnectionAttempts
       });
+
+      // Socket options for better connection stability
+      const socketOptions = {
+        keepAlive: true,
+        keepAliveDelay: 15000, // 15 seconds
+        timeout: CONNECTION_TIMEOUT
+      };
+
+      this.connection = await amqp.connect(config.rabbitmqUrl || '', {
+        heartbeat: HEARTBEAT_INTERVAL,
+        timeout: CONNECTION_TIMEOUT,
+        socket: socketOptions
+      });
+
       this.channel = await this.connection.createChannel();
-      logger.info('Connected to RabbitMQ');
+      logger.info('Connected to RabbitMQ successfully');
+
+      // Reset connection attempts on successful connection
+      this.connectionAttempts = 0;
 
       const queueName = 'webhook-events';
-      await this.channel.assertQueue(queueName, { durable: true });
-      logger.info(`Successfully asserted queue: ${queueName}`);
+      await this.channel.assertQueue(queueName, { 
+        durable: true,
+        // Add queue options for better message handling
+        deadLetterExchange: 'webhook-events-dlx',
+        messageTtl: 24 * 60 * 60 * 1000 // 24 hours
+      });
+      
+      // Assert DLX and DLQ
+      await this.channel.assertExchange('webhook-events-dlx', 'direct', { durable: true });
+      await this.channel.assertQueue('webhook-events-dlq', { durable: true });
+      await this.channel.bindQueue('webhook-events-dlq', 'webhook-events-dlx', 'webhook-events');
+
+      logger.info(`Successfully asserted queue and DLQ setup: ${queueName}`);
 
       this.connection.on('error', (err) => {
-        logger.error('RabbitMQ connection error:', err);
-        this.scheduleReconnect();
+        logger.error('RabbitMQ connection error:', { error: err, stack: err.stack });
+        this.handleConnectionFailure();
       });
 
       this.connection.on('close', () => {
         logger.warn('RabbitMQ connection closed');
-        this.scheduleReconnect();
+        this.handleConnectionFailure();
       });
 
       this.channel.on('error', (err) => {
-        logger.error('RabbitMQ channel error:', err);
+        logger.error('RabbitMQ channel error:', { error: err, stack: err.stack });
+        this.handleChannelFailure();
       });
 
       this.channel.on('close', () => {
         logger.warn('RabbitMQ channel closed');
+        this.handleChannelFailure();
       });
+
+      // Set channel prefetch for better load handling
+      await this.channel.prefetch(1);
 
       this.isConnecting = false;
       logger.info('RabbitMQ connection established and ready to consume messages');
     } catch (error) {
-      logger.error('Failed to connect to RabbitMQ:', error);
-      this.isConnecting = false;
+      logger.error('Failed to connect to RabbitMQ:', { 
+        error, 
+        stack: error instanceof Error ? error.stack : undefined,
+        attempt: this.connectionAttempts
+      });
+      this.handleConnectionFailure();
+    }
+  }
+
+  private handleConnectionFailure() {
+    this.isConnecting = false;
+    this.channel = null;
+    this.connection = null;
+
+    if (this.connectionAttempts < this.maxConnectionAttempts) {
       this.scheduleReconnect();
+    } else {
+      logger.error('Max reconnection attempts reached. Manual intervention required.', {
+        attempts: this.connectionAttempts
+      });
+      // Here you might want to notify your monitoring system
+    }
+  }
+
+  private handleChannelFailure() {
+    this.channel = null;
+    try {
+      if (this.connection) {
+        this.recreateChannel().catch(err => {
+          logger.error('Failed to recreate channel:', { error: err });
+          this.handleConnectionFailure();
+        });
+      } else {
+        this.handleConnectionFailure();
+      }
+    } catch (error) {
+      this.handleConnectionFailure();
+    }
+  }
+
+  private async recreateChannel() {
+    try {
+      if (this.connection) {
+        this.channel = await this.connection.createChannel();
+        await this.channel.prefetch(1);
+        logger.info('Successfully recreated RabbitMQ channel');
+      }
+    } catch (error) {
+      logger.error('Error recreating channel:', { error });
       throw error;
     }
   }
@@ -62,12 +149,17 @@ export class RabbitMQConnection {
       clearTimeout(this.reconnectTimeout);
     }
 
+    const delay = Math.min(RECONNECT_TIMEOUT * Math.pow(2, this.connectionAttempts - 1), 60000);
+    logger.info('Scheduling reconnection attempt', { 
+      attempt: this.connectionAttempts,
+      delayMs: delay 
+    });
+
     this.reconnectTimeout = setTimeout(() => {
-      logger.info('Attempting to reconnect to RabbitMQ...');
       this.connect().catch((err) => {
-        logger.error('Failed to reconnect:', err);
+        logger.error('Failed to reconnect:', { error: err });
       });
-    }, 5000);
+    }, delay);
   }
 
   async getChannel(): Promise<amqp.Channel> {
