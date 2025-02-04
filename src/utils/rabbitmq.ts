@@ -312,7 +312,14 @@ export class RabbitMQConnection {
     }
 
     try {
-      await this.channel.checkQueue('webhook-events');
+      if (this.activeQueues.size > 0) {
+        // Use the first active queue for health check
+        const queue = this.activeQueues.values().next().value;
+        await this.channel.checkQueue(queue);
+      } else {
+        // If no active queues, just check the connection is responsive
+        await this.channel.checkQueue('');
+      }
       return true;
     } catch (error) {
       logger.error('RabbitMQ health check failed:', error);
