@@ -16,14 +16,26 @@ export class ProfileController {
         throw new BadRequestError('User ID is required');
       }
 
-      const profileData = {
-        ...req.body,
+      const { apiKey, ...profileData } = req.body;
+      
+      // Validate API key format and presence
+      if (!apiKey) {
+        throw new BadRequestError('API key is required');
+      }
+
+      if (!apiKey.startsWith('mk_') || apiKey.length !== 67) {
+        throw new BadRequestError('Invalid API key format');
+      }
+
+      const data = {
+        ...profileData,
         clerkId,
+        apiKey,
         createdAt: new Date(),
         updatedAt: new Date()
       };
 
-      const profile = await profileService.createProfile(profileData);
+      const profile = await profileService.createProfile(data);
       res.status(201).json(profile);
     } catch (error) {
       logger.error('Error creating profile:', error);

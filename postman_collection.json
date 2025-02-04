@@ -23,6 +23,92 @@
       "name": "Profile",
       "item": [
         {
+          "name": "Create Profile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{profile_create_key}}",
+                "type": "text",
+                "description": "Static API key for profile creation"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clerkId\": \"user_123\",\n  \"email\": \"user@example.com\",\n  \"emailVerified\": true,\n  \"phoneNumber\": \"+1234567890\",\n  \"phoneVerified\": false,\n  \"username\": \"johndoe\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"avatarUrl\": \"https://example.com/avatar.jpg\",\n  \"apiKey\": \"mk_0dbf1b1e4c8fabefa85429b5cabec282f2a1dd442dc8c0ab7a134bd77f0c6fb6\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/profiles/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "profiles", "me"]
+            },
+            "description": "Create a new user profile. Requires a special API key in the x-api-key header and a user-specific API key in the request body."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "{{profile_create_key}}",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clerkId\": \"user_123\",\n  \"email\": \"user@example.com\",\n  \"apiKey\": \"mk_0dbf1b1e4c8fabefa85429b5cabec282f2a1dd442dc8c0ab7a134bd77f0c6fb6\"\n}"
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"_id\": \"507f1f77bcf86cd799439011\",\n  \"clerkId\": \"user_123\",\n  \"email\": \"user@example.com\",\n  \"emailVerified\": true,\n  \"apiKey\": \"mk_0dbf1b1e4c8fabefa85429b5cabec282f2a1dd442dc8c0ab7a134bd77f0c6fb6\",\n  \"createdAt\": \"2024-02-04T17:00:03.248Z\",\n  \"updatedAt\": \"2024-02-04T17:00:03.248Z\"\n}"
+            },
+            {
+              "name": "Error - Invalid API Key",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "x-api-key",
+                    "value": "invalid-key",
+                    "type": "text"
+                  }
+                ]
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"Invalid API key\"\n}"
+            }
+          ]
+        },
+        {
           "name": "Get Profile",
           "request": {
             "method": "GET",
@@ -39,35 +125,6 @@
               "path": ["api", "profiles", "me"]
             },
             "description": "Get the current user's profile"
-          },
-          "response": []
-        },
-        {
-          "name": "Create Profile",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{jwt_token}}",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"clerkId\": \"user_123\",\n  \"email\": \"user@example.com\",\n  \"emailVerified\": true,\n  \"phoneNumber\": \"+1234567890\",\n  \"phoneVerified\": false,\n  \"username\": \"johndoe\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"avatarUrl\": \"https://example.com/avatar.jpg\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/profiles/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "profiles", "me"]
-            },
-            "description": "Create a new user profile"
           },
           "response": []
         },
@@ -96,7 +153,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "profiles", "me"]
             },
-            "description": "Update the current user's profile"
+            "description": "Update the current user's profile. Only specified fields will be updated."
           },
           "response": []
         },
@@ -190,7 +247,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "preferences"]
             },
-            "description": "Update user preferences"
+            "description": "Update user preferences. Only specified fields will be updated."
           },
           "response": []
         }
@@ -244,7 +301,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "professional"]
             },
-            "description": "Update professional information"
+            "description": "Update professional information. Only specified fields will be updated."
           },
           "response": []
         }
@@ -317,6 +374,12 @@
       "key": "jwt_token",
       "value": "your_jwt_token_here",
       "type": "string"
+    },
+    {
+      "key": "profile_create_key",
+      "value": "your-secure-profile-creation-key-here",
+      "type": "string",
+      "description": "Static API key for profile creation endpoint"
     }
   ]
 } 

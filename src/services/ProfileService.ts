@@ -11,10 +11,20 @@ const logger = createLogger('ProfileService');
 // MongoDB connection
 const db = mongoClient.db();
 
-interface ProfileUpdateData {
+interface ProfileData {
+  clerkId: string;
+  apiKey: string;
+  email?: string;
+  emailVerified?: boolean;
+  phoneNumber?: string;
+  phoneVerified?: boolean;
+  username?: string;
   firstName?: string;
   lastName?: string;
   avatarUrl?: string;
+  externalAccounts?: any[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface UserPreferences {
@@ -55,10 +65,16 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   }
 };
 
+export interface ProfileUpdateData {
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+}
+
 export class ProfileService {
   private redisService: RedisService | null = null;
 
-  async createProfile(data: any) {
+  async createProfile(data: ProfileData) {
     try {
       logger.info('Creating new profile', { data: JSON.stringify(data) });
       
@@ -66,7 +82,9 @@ export class ProfileService {
         throw new BadRequestError('ClerkId is required');
       }
 
-      const apiKey = this.generateApiKey();
+      if (!data.apiKey || !data.apiKey.startsWith('mk_') || data.apiKey.length !== 67) {
+        throw new BadRequestError('Valid API key is required');
+      }
       
       const profileCollection = db.collection('Profile');
       const result = await profileCollection.insertOne({
@@ -80,7 +98,7 @@ export class ProfileService {
         firstName: data.firstName,
         lastName: data.lastName,
         avatarUrl: data.avatarUrl,
-        apiKey: apiKey,
+        apiKey: data.apiKey,
         createdAt: new Date(data.createdAt),
         updatedAt: new Date(data.updatedAt)
       });

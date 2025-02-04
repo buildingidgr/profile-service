@@ -1,14 +1,19 @@
 import { Router } from 'express';
 import { ProfileController } from '../controllers/ProfileController';
+import { validateToken } from '../middleware/validateToken';
+import { validateCreateProfileKey } from '../middleware/validateCreateProfileKey';
 
 export const profileRoutes = Router();
 const profileController = new ProfileController();
 
-profileRoutes.post('/me', profileController.createProfile);
-profileRoutes.get('/', profileController.getProfile);
-profileRoutes.get('/me', profileController.getProfile);
-profileRoutes.patch('/me', profileController.updateProfile);
-profileRoutes.get('/me/preferences', profileController.getPreferences);
-profileRoutes.patch('/me/preferences', profileController.updateProfilePreferences);
-profileRoutes.post('/me/api-key', profileController.generateApiKey);
+// Create profile endpoint with special API key auth
+profileRoutes.post('/me', validateCreateProfileKey, profileController.createProfile);
+
+// All other endpoints with JWT auth
+profileRoutes.get('/', validateToken, profileController.getProfile);
+profileRoutes.get('/me', validateToken, profileController.getProfile);
+profileRoutes.patch('/me', validateToken, profileController.updateProfile);
+profileRoutes.get('/me/preferences', validateToken, profileController.getPreferences);
+profileRoutes.patch('/me/preferences', validateToken, profileController.updateProfilePreferences);
+profileRoutes.post('/me/api-key', validateToken, profileController.generateApiKey);
 
