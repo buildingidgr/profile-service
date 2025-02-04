@@ -13,8 +13,12 @@ declare global {
 
 const logger = createLogger('validateCreateProfileKey');
 
-// This key should be stored in environment variables
-const PROFILE_CREATE_API_KEY = process.env.PROFILE_CREATE_API_KEY || 'mh_profile_create_key_123456';
+if (!process.env.PROFILE_CREATE_API_KEY) {
+  logger.error('PROFILE_CREATE_API_KEY environment variable is not set');
+  throw new Error('PROFILE_CREATE_API_KEY environment variable is required');
+}
+
+const PROFILE_CREATE_API_KEY = process.env.PROFILE_CREATE_API_KEY;
 
 export const validateCreateProfileKey = (
   req: Request, 
