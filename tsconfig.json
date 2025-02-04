@@ -21,25 +21,33 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "resolveJsonModule": true,
-    "baseUrl": "src",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["*"],
-      "@api/*": ["api/*"],
-      "@consumer/*": ["consumer/*"],
-      "@shared/*": ["shared/*"],
-      "@config/*": ["config/*"],
-      "@utils/*": ["utils/*"],
-      "@services/*": ["services/*"]
+      "@/*": ["src/*"],
+      "@api/*": ["src/api/*"],
+      "@consumer/*": ["src/consumer/*"],
+      "@shared/*": ["src/shared/*"],
+      "@config/*": ["src/config/*"],
+      "@utils/*": ["src/utils/*"],
+      "@services/*": ["src/services/*"]
     },
     "typeRoots": [
       "./node_modules/@types",
       "./src/@types"
+    ],
+    "types": [
+      "node",
+      "express",
+      "jest"
     ]
   },
   "include": [
-    "src/**/*",
-    "src/@types/**/*"
+    "src/**/*.ts",
+    "src/**/*.d.ts"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
 
