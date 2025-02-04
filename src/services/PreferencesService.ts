@@ -16,7 +16,6 @@ export interface UserPreferences {
       updates: boolean;
       security: boolean;
       newsletters: boolean;
-      productAnnouncements: boolean;
     };
   };
   display: {
@@ -25,21 +24,20 @@ export interface UserPreferences {
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  dashboard: {
-    timezone: 'UTC',
-    language: 'en'
-  },
   notifications: {
     email: {
-      marketing: true,
-      updates: true,
-      security: true,
-      newsletters: true,
-      productAnnouncements: true
+      updates: false,
+      marketing: false,
+      security: false,
+      newsletters: false
     }
   },
+  dashboard: {
+    language: "en-US",
+    timezone: "Athens/Greece"
+  },
   display: {
-    theme: 'system'
+    theme: "light"
   }
 };
 
