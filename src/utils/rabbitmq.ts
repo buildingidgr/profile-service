@@ -107,30 +107,34 @@ export class RabbitMQConnection {
 
     try {
       await this.channel.consume(queue, async (msg) => {
-        if (msg) {
-          const messageId = msg.properties.messageId || 'unknown';
-          logger.info(`[${messageId}] Processing message from queue ${queue}`, {
-            queue,
+        if (!msg) return;
+
+        const messageId = msg.properties.messageId || 'unknown';
+        logger.info(`[${messageId}] Processing message from queue ${queue}`, {
+          queue,
+          messageId,
+          content: msg.content.toString(),
+          properties: msg.properties
+        });
+
+        try {
+          const content = JSON.parse(msg.content.toString());
+          await callback(content);
+          if (this.channel) {
+            this.channel.ack(msg);
+            logger.info(`[${messageId}] Successfully processed message from ${queue}`);
+          }
+        } catch (error) {
+          logger.error(`[${messageId}] Error processing message from queue ${queue}:`, {
+            error,
             messageId,
             content: msg.content.toString(),
-            properties: msg.properties
+            stack: error instanceof Error ? error.stack : undefined
           });
-
-          try {
-            const content = JSON.parse(msg.content.toString());
-            await callback(content);
-            this.channel?.ack(msg);
-            logger.info(`[${messageId}] Successfully processed message from ${queue}`);
-          } catch (error) {
-            logger.error(`[${messageId}] Error processing message from queue ${queue}:`, {
-              error,
-              messageId,
-              content: msg.content.toString(),
-              stack: error instanceof Error ? error.stack : undefined
-            });
-            
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            this.channel?.nack(msg, false, true);
+          
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          if (this.channel) {
+            this.channel.nack(msg, false, true);
           }
         }
       });
@@ -322,10 +326,15 @@ export class RabbitMQConnection {
       if (this.activeQueues.size > 0) {
         // Use the first active queue for health check
         const queue = this.activeQueues.values().next().value;
-        await this.channel.checkQueue(queue);
+        if (queue) {
+          await this.channel.checkQueue(queue);
+        } else {
+          // Fallback to checking connection
+          await this.channel.checkQueue('health-check');
+        }
       } else {
-        // If no active queues, just check the connection is responsive
-        await this.channel.checkQueue('');
+        // If no active queues, create a temporary one for health check
+        await this.channel.checkQueue('health-check');
       }
       return true;
     } catch (error) {
