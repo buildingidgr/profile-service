@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ProfileService } from '../../services/ProfileService';
 import { PreferencesService } from '../../services/PreferencesService';
 import { createLogger } from '../../shared/utils/logger';
-import { BadRequestError } from '../../shared/utils/errors';
+import { BadRequestError, UnauthorizedError } from '../../shared/utils/errors';
 
 const logger = createLogger('ProfileController');
 const profileService = new ProfileService();
@@ -114,6 +114,28 @@ export class ProfileController {
       res.json({ apiKey });
     } catch (error) {
       logger.error('Error generating API key:', error);
+      next(error);
+    }
+  }
+
+  async getProfileById(req: Request, res: Response, next: NextFunction) {
+    try {
+      const requestedClerkId = req.params.clerkId;
+      const authenticatedUserId = req.user?.sub;
+
+      if (!authenticatedUserId) {
+        throw new UnauthorizedError('User not authenticated');
+      }
+
+      // Only allow users to access their own profile
+      if (authenticatedUserId !== requestedClerkId) {
+        throw new UnauthorizedError('You can only access your own profile');
+      }
+
+      const profile = await profileService.getProfile(requestedClerkId);
+      res.json(profile);
+    } catch (error) {
+      logger.error('Error getting profile by ID:', error);
       next(error);
     }
   }

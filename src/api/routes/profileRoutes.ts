@@ -12,6 +12,7 @@ profileRoutes.post('/me', validateCreateProfileKey, profileController.createProf
 // All other endpoints with JWT auth
 profileRoutes.get('/', validateToken, profileController.getProfile);
 profileRoutes.get('/me', validateToken, profileController.getProfile);
+profileRoutes.get('/:clerkId', validateToken, profileController.getProfileById);
 profileRoutes.patch('/me', validateToken, profileController.updateProfile);
 profileRoutes.get('/me/preferences', validateToken, profileController.getPreferences);
 profileRoutes.patch('/me/preferences', validateToken, profileController.updateProfilePreferences);
