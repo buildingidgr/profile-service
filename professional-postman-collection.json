@@ -1,0 +1,110 @@
+{
+	"info": {
+		"_postman_id": "professional-service-collection",
+		"name": "Professional Service API",
+		"description": "Collection for managing professional information",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get Professional Info",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/professional",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"professional"
+					]
+				},
+				"description": "Get professional information for the authenticated user"
+			}
+		},
+		{
+			"name": "Update Professional Info (Full Update)",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"profession\": {\n        \"current\": \"Civil Engineer\"\n    },\n    \"amtee\": \"123456\",\n    \"areaOfOperation\": {\n        \"primary\": \"Athens\",\n        \"address\": \"123 Main St, Athens, Greece\",\n        \"coordinates\": {\n            \"latitude\": 37.9838,\n            \"longitude\": 23.7275\n        }\n    },\n    \"radius\": 50\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/professional",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"professional"
+					]
+				},
+				"description": "Update entire professional information for the authenticated user"
+			}
+		},
+		{
+			"name": "Update Professional Info (Partial Update)",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{jwt_token}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"profession\": {\n        \"current\": \"Civil Engineer\"\n    }\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/professional",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"professional"
+					]
+				},
+				"description": "Partially update professional information for the authenticated user. Only the fields included in the request will be updated."
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000"
+		},
+		{
+			"key": "jwt_token",
+			"value": "your_jwt_token_here"
+		}
+	]
+} 

@@ -37,4 +37,23 @@ router.put('/', async (req, res, next) => {
   }
 });
 
+router.patch('/', async (req, res, next) => {
+  try {
+    const clerkId = req.user?.sub;
+    if (!clerkId) {
+      throw new BadRequestError('User ID is required');
+    }
+
+    if (Object.keys(req.body).length === 0) {
+      throw new BadRequestError('Request body cannot be empty for PATCH operation');
+    }
+
+    const info = await professionalService.updateProfessionalInfo(clerkId, req.body);
+    res.json(info);
+  } catch (error) {
+    logger.error('Error patching professional info:', error);
+    next(error);
+  }
+});
+
 export const professionalRoutes = router; 
